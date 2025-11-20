@@ -1,5 +1,6 @@
-import { proto, type AnyMessageContent } from '@whiskeysockets/baileys';
+import { proto, type AnyMessageContent, downloadMediaMessage, type WAMessage } from '@whiskeysockets/baileys';
 import type { IAdapter } from './interfaces';
+import type { Client } from './Client';
 
 interface ExtendedWebMessageInfo extends proto.IWebMessageInfo {
     participant?: string | null;
@@ -8,7 +9,8 @@ interface ExtendedWebMessageInfo extends proto.IWebMessageInfo {
 export class Context {
     constructor(
         public readonly raw: proto.IWebMessageInfo,
-        private readonly adapter: IAdapter
+        private readonly adapter: IAdapter,
+        public readonly client: Client
     ) {}
 
     /** 
@@ -44,6 +46,14 @@ export class Context {
     }
 
     /**
+     * Is this message sent by the bot (outgoing) or received from someone else (incoming)?
+     * true = outgoing (from me), false = incoming (to me)
+     */
+    get fromMe(): boolean {
+        return this.raw.key?.fromMe ?? false;
+    }
+
+    /**
      * The actual text content (flattened)
      */
     get body(): string {
@@ -58,25 +68,90 @@ export class Context {
     }
 
     /**
+     * Checks if the message mentions the bot
+     */
+    get mentionsMe(): boolean {
+        const myJid = this.client.user.id;
+        // TODO: Normalize JID comparison (remove @s.whatsapp.net suffix for comparison if needed)
+        return this.raw.message?.extendedTextMessage?.contextInfo?.mentionedJid?.includes(myJid) 
+          || false;
+    }
+
+    /**
+     * Easy access to quoted message context
+     */
+    get quoted(): Context | null {
+        const msg = this.raw.message;
+        // Find contextInfo in common message types
+        const content = msg?.extendedTextMessage || 
+                        msg?.imageMessage || 
+                        msg?.videoMessage || 
+                        msg?.stickerMessage ||
+                        msg?.audioMessage ||
+                        msg?.documentMessage;
+                        
+        const ctxInfo = content?.contextInfo;
+
+        if (!ctxInfo?.quotedMessage) return null;
+
+        const quotedMsg: proto.IWebMessageInfo = {
+            key: {
+                remoteJid: this.from,
+                fromMe: ctxInfo.participant === this.client.user.id,
+                id: ctxInfo.stanzaId,
+                participant: ctxInfo.participant
+            },
+            message: ctxInfo.quotedMessage,
+            pushName: undefined
+        };
+
+        return new Context(quotedMsg, this.adapter, this.client);
+    }
+
+    /**
+     * Download media from the message if it exists.
+     * Returns Buffer or null if no media.
+     */
+    async download(): Promise<Buffer | null> {
+        try {
+            // We need to pass a logger to downloadMediaMessage, but we can use a dummy one or console
+            // The type definition might require a specific logger interface
+            const buffer = await downloadMediaMessage(
+                this.raw as WAMessage,
+                'buffer',
+                { }
+            );
+            return buffer;
+        } catch (err) {
+            console.error('Failed to download media:', err);
+            return null;
+        }
+    }
+
+    /**
      * Reply to this message.
-     * 
-     * @example
-     * // Simple text
-     * ctx.reply("Hello!");
-     * 
-     * @example
-     * // Full Baileys power (Images, etc.)
-     * ctx.reply({ image: { url: '...' }, caption: 'Look!' });
      */
     async reply(content: string | AnyMessageContent) {
         const payload = typeof content === 'string' ? { text: content } : content;
         
-        // We pass the 3rd argument 'options' which IAdapter now expects
         return this.adapter.sendMessage(
             this.from, 
             payload, 
             { quoted: this.raw }
         );
+    }
+
+    /**
+     * Send a poll
+     */
+    async sendPoll(name: string, values: string[]) {
+        return this.adapter.sendMessage(this.from, {
+            poll: {
+                name,
+                values,
+                selectableCount: 1
+            }
+        });
     }
 
     /**
@@ -97,7 +172,41 @@ export class Context {
     async read() {
         const key = this.raw.key;
         if (!key) return;
-
         return this.adapter.readMessage([key]);
+    }
+
+    // --- Presence Helpers ---
+
+    /**
+     * Simulate typing (composing) state.
+     */
+    async typing() {
+        return this.adapter.sendPresenceUpdate(this.from, 'composing');
+    }
+
+    /**
+     * Simulate recording audio state.
+     */
+    async recording() {
+        return this.adapter.sendPresenceUpdate(this.from, 'recording');
+    }
+
+    // --- Messaging Helpers ---
+
+    async forward(jid: string) {
+        return this.adapter.sendMessage(jid, { forward: this.raw as WAMessage });
+    }
+
+    async sendLocation(lat: number, long: number) {
+        return this.adapter.sendMessage(this.from, {
+            location: { degreesLatitude: lat, degreesLongitude: long }
+        });
+    }
+
+    async replyWithMentions(text: string, mentions: string[]) {
+        return this.adapter.sendMessage(this.from, {
+            text: text,
+            mentions: mentions
+        }, { quoted: this.raw });
     }
 }

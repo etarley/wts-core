@@ -19,7 +19,8 @@ export const createLogger = (level: 'fatal' | 'error' | 'warn' | 'info' | 'debug
 
     // Baileys expects a specific signature for log methods
     const log = (method: 'error' | 'warn' | 'info' | 'log') => (obj: unknown, msg?: string) => {
-        if (!shouldLog(method === 'log' ? 'debug' : method as any)) return;
+        const levelKey = method === 'log' ? 'debug' : method;
+        if (!shouldLog(levelKey)) return;
 
         if (typeof obj === 'string') {
             console[method](obj);

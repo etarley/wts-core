@@ -19,9 +19,37 @@ export class ChatResource extends BaseResource {
     /**
      * Implementation
      */
-    async send(jid: string, content: string | AnyMessageContent): Promise<proto.IWebMessageInfo | undefined> {
+    async send(jid: string, content: string | AnyMessageContent) {
         const payload: AnyMessageContent = typeof content === 'string' ? { text: content } : content;
         return this.adapter.sendMessage(jid, payload);
+    }
+
+    async toggleEphemeral(jid: string, duration: number): Promise<void> {
+        return this.adapter.toggleEphemeral(jid, duration);
+    }
+
+    async archive(jid: string): Promise<void> {
+        return this.adapter.chatModify(jid, 'archive');
+    }
+
+    async unarchive(jid: string): Promise<void> {
+        return this.adapter.chatModify(jid, 'unarchive');
+    }
+
+    async pin(jid: string): Promise<void> {
+        return this.adapter.chatModify(jid, 'pin');
+    }
+
+    async unpin(jid: string): Promise<void> {
+        return this.adapter.chatModify(jid, 'unpin');
+    }
+
+    async mute(jid: string, duration?: number): Promise<void> {
+        return this.adapter.chatModify(jid, 'mute', { duration });
+    }
+
+    async unmute(jid: string): Promise<void> {
+        return this.adapter.chatModify(jid, 'unmute');
     }
 
     /**

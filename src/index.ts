@@ -25,7 +25,18 @@ export const createClient = (options: UniversalOptions = {}) => {
 };
 
 // Export Types for the end user
-export * from './types';
-export * from './core/Context';
 export * from './core/Client';
+export * from './core/Context';
 export * from './resources/ChatResource';
+export * from './resources/UserResource';
+export * from './resources/ContactResource';
+export * from './resources/GroupResource';
+export * from './resources/StatusResource';
+export { NewsletterResource } from './resources/NewsletterResource';
+export { CallResource } from './resources/CallResource';
+export { BusinessResource } from './resources/BusinessResource';
+export { CommunityResource } from './resources/CommunityResource';
+export { PrivacyResource } from './resources/PrivacyResource';
+export * from './core/Media';
+export * from './core/Store';
+export * from './types';

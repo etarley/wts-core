@@ -1,0 +1,17 @@
+{
+  "name": "wts-core",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.3.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@whiskeysockets/baileys": "^7.0.0-rc.8",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

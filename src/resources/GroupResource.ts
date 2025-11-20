@@ -3,8 +3,8 @@ import type { IAdapter } from '../core/interfaces';
 export class GroupResource {
     constructor(private readonly adapter: IAdapter) {}
 
-    async create(subject: string, participants: string[]) {
-        return this.adapter.groupCreate(subject, participants);
+    async create(subject: string, participants: string[], description?: string) {
+        return this.adapter.groupCreate(subject, participants, description);
     }
 
     async getMetadata(groupJid: string) {

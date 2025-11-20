@@ -39,7 +39,7 @@ export interface IAdapter {
     groupRevokeInvite(jid: string): Promise<void>;
     groupAcceptInvite(code: string): Promise<string | undefined>;
     groupLeave(jid: string): Promise<void>;
-    groupCreate(subject: string, participants: string[]): Promise<GroupMetadata>;
+    groupCreate(subject: string, participants: string[], description?: string): Promise<GroupMetadata>;
     groupMetadata(jid: string): Promise<GroupMetadata>;
     toggleEphemeral(jid: string, duration: number): Promise<void>;
 

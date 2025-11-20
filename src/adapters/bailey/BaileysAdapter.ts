@@ -239,9 +239,15 @@ export class BaileysAdapter implements IAdapter {
         await this.sock.groupLeave(jid);
     }
 
-    async groupCreate(subject: string, participants: string[]): Promise<GroupMetadata> {
+    async groupCreate(subject: string, participants: string[], description?: string): Promise<GroupMetadata> {
         if (!this.sock) throw new Error('Client not connected');
-        return this.sock.groupCreate(subject, participants);
+        const group = await this.sock.groupCreate(subject, participants);
+
+        if (description) {
+            await this.sock.groupUpdateDescription(group.id, description);
+        }
+
+        return group;
     }
 
     async groupMetadata(jid: string): Promise<GroupMetadata> {
@@ -311,7 +317,13 @@ export class BaileysAdapter implements IAdapter {
     async communityCreate(subject: string, description?: string): Promise<GroupMetadata> {
         if (!this.sock) throw new Error('Client not connected');
         // Baileys uses groupCreate for communities, we just pass an empty array for participants
-        return this.sock.groupCreate(subject, []);
+        const group = await this.sock.groupCreate(subject, []);
+
+        if (description) {
+            await this.sock.groupUpdateDescription(group.id, description);
+        }
+
+        return group;
     }
 
     async communityDeactivate(jid: string): Promise<void> {

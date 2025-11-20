@@ -7,7 +7,7 @@ import makeWASocket, {
     type ConnectionState,
     type WAMessage
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
+import { type Boom } from '@hapi/boom';
 import { createLogger } from '../../utils/logger';
 import type { IAdapter, SendMessageOptions } from '../../core/interfaces';
 import type { UniversalOptions } from '../../types';

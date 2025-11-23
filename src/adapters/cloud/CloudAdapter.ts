@@ -99,10 +99,12 @@ export class CloudAdapter implements CloudAdapterInterface {
                             const challenge = url.searchParams.get('hub.challenge');
 
                             if (mode === 'subscribe' && token === this.options.cloudApi!.webhookVerifyToken) {
+                                console.log('✅ Webhook verified successfully!');
                                 res.writeHead(200);
                                 res.end(challenge);
                                 return;
                             }
+                            console.error('❌ Webhook verification failed! Token mismatch.');
                             res.writeHead(403);
                             res.end('Forbidden');
                             return;
@@ -326,8 +328,10 @@ export class CloudAdapter implements CloudAdapterInterface {
                 const challenge = url.searchParams.get('hub.challenge');
 
                 if (mode === 'subscribe' && token === this.options.cloudApi!.webhookVerifyToken) {
+                    console.log('✅ Webhook verified successfully!');
                     return new Response(challenge, { status: 200 });
                 }
+                console.error('❌ Webhook verification failed! Token mismatch.');
                 return new Response('Forbidden', { status: 403 });
             }
 

@@ -34,7 +34,7 @@ const client = createClient<Env>({
   cloudApi: {
     accessToken: process.env.CLOUD_API_ACCESS_TOKEN!,
     phoneNumberId: process.env.CLOUD_API_PHONE_NUMBER_ID!,
-    verifyToken: process.env.CLOUD_API_VERIFY_TOKEN!,
+    webhookVerifyToken: process.env.CLOUD_API_VERIFY_TOKEN!, // Make sure this matches Meta's console
   },
   // Or for Baileys
   // auth: { ... }
@@ -48,8 +48,21 @@ client.on("message", async (ctx) => {
 });
 
 // 3. Start the client
+// This will start the server and handle the webhook verification automatically.
+// You will see "✅ Webhook verified successfully!" in the console when Meta verifies your token.
 client.start({ port: 3000 });
 ```
+
+### Webhook Verification
+
+When using the Cloud API, you need to configure the **Callback URL** and **Verify Token** in the [Meta App Dashboard](https://developers.facebook.com/apps/).
+
+1. Set your **Callback URL** to `https://your-domain.com/webhook`.
+2. Set your **Verify Token** to the same string you passed to `webhookVerifyToken` in your config.
+3. Click **Verify and Save**.
+4. `wts-core` will automatically handle the verification request.
+   - If successful, you'll see: `✅ Webhook verified successfully!`
+   - If failed, you'll see: `❌ Webhook verification failed! Token mismatch.`
 
 ## Documentation
 

@@ -1,85 +1,37 @@
-import { proto, type Chat, type Contact, type BaileysEventEmitter } from '@whiskeysockets/baileys';
-import { readFile, writeFile } from 'fs/promises';
+import type { BaileysEventEmitter, proto, Chat, Contact } from '@whiskeysockets/baileys';
+import type { StorageAdapter } from './storage/types';
+import { MemoryAdapter } from './storage/MemoryAdapter';
 
 export interface IStore {
     bind(ev: BaileysEventEmitter): void;
-    readFromFile(path: string): Promise<void>;
-    writeToFile(path: string): Promise<void>;
     loadMessage(jid: string, id: string): Promise<proto.IWebMessageInfo | undefined>;
 }
 
 export class Store implements IStore {
-    private chats: Record<string, Chat> = {};
-    private messages: Record<string, proto.IWebMessageInfo[]> = {};
-    private contacts: Record<string, Contact> = {};
-
-    static create(path: string = './store.json'): Store {
-        const store = new Store();
-        store.readFromFile(path).catch(() => {});
-        
-        // Save every 10s
-        setInterval(() => {
-            store.writeToFile(path);
-        }, 10_000);
-
-        return store;
-    }
-
-    bind(ev: BaileysEventEmitter): void {
-        ev.on('messages.upsert', (update: { messages: proto.IWebMessageInfo[], type: string }) => {
-            for (const msg of update.messages) {
-                const jid = msg.key?.remoteJid;
-                if (!jid) continue;
-                const messages = this.messages[jid];
-                if (messages) {
-                    messages.push(msg);
-                } else {
-                    this.messages[jid] = [msg];
-                }
-            }
-        });
-
-        ev.on('contacts.upsert', (update: Contact[]) => {
-            for (const contact of update) {
-                if (contact.id) {
-                    this.contacts[contact.id] = Object.assign(this.contacts[contact.id] || {}, contact);
-                }
-            }
-        });
-
-        ev.on('chats.upsert', (update: Chat[]) => {
-            for (const chat of update) {
-                if (chat.id) {
-                    this.chats[chat.id] = Object.assign(this.chats[chat.id] || {}, chat);
-                }
-            }
-        });
-    }
-
-    async readFromFile(path: string): Promise<void> {
-        try {
-            const data = JSON.parse(await readFile(path, 'utf-8'));
-            this.chats = data.chats || {};
-            this.messages = data.messages || {};
-            this.contacts = data.contacts || {};
-        } catch {
-            // Ignore if file doesn't exist
+    constructor(public readonly adapter: StorageAdapter = new MemoryAdapter()) {
+        if (this.adapter.init) {
+            this.adapter.init().catch(err => console.error('Failed to init storage adapter:', err));
         }
     }
 
-    async writeToFile(path: string): Promise<void> {
-        const data = {
-            chats: this.chats,
-            messages: this.messages,
-            contacts: this.contacts
-        };
-        await writeFile(path, JSON.stringify(data, null, 2));
+    // Store.create is removed to avoid dependency on 'fs' for serverless compatibility.
+    // Use new Store(new JSONFileAdapter('./store.json')) instead.
+
+    bind(ev: BaileysEventEmitter): void {
+        ev.on('messages.upsert', async ({ messages }: { messages: proto.IWebMessageInfo[] }) => {
+            await this.adapter.saveMessages(messages);
+        });
+
+        ev.on('contacts.upsert', async (update) => {
+            await this.adapter.saveContacts(update as Partial<Contact>[]);
+        });
+
+        ev.on('chats.upsert', async (update) => {
+            await this.adapter.saveChats(update as Partial<Chat>[]);
+        });
     }
 
     async loadMessage(jid: string, id: string): Promise<proto.IWebMessageInfo | undefined> {
-        const messages = this.messages[jid];
-        if (!messages) return undefined;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return messages.find((m: any) => m.key.id === id);
+        return this.adapter.loadMessage(jid, id);
     }
 }

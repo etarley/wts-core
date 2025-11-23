@@ -1,39 +1,73 @@
-import { BaseResource } from './BaseResource';
-import type { ProductCreate, ProductUpdate } from '@whiskeysockets/baileys';
+import type { IAdapter } from '../core/interfaces';
 
-export class BusinessResource extends BaseResource {
+export class BusinessResource {
+    constructor(private readonly adapter: IAdapter) {}
+
     /**
-     * Get the catalog for a specific JID
+     * Update the business profile settings.
+     * @param settings - The profile settings to update
      */
-    async getCatalog(jid: string, limit = 10) {
-        return this.adapter.businessGetCatalog(jid, limit);
+    async updateProfile(settings: { 
+        about?: string; 
+        address?: string; 
+        email?: string; 
+        websites?: string[]; 
+        vertical?: string; 
+    }) {
+        if (this.adapter.mode === 'cloud') {
+            await this.adapter.businessUpdateProfile(settings);
+        } else {
+            throw new Error('Business profile update not supported by this adapter');
+        }
     }
 
     /**
-     * Create a new product in your catalog
+     * Get the business profile settings.
      */
-    async createProduct(product: ProductCreate) {
-        return this.adapter.businessProductCreate(product);
+    async getProfile() {
+        if (this.adapter.mode === 'cloud') {
+            return this.adapter.getBusinessProfile();
+        }
+        throw new Error('Getting business profile not supported by this adapter');
     }
 
     /**
-     * Update an existing product
+     * Register the phone number for WhatsApp Business API (Two-Step Verification).
+     * @param pin - The 6-digit PIN to set
      */
-    async updateProduct(productId: string, update: ProductUpdate) {
-        return this.adapter.businessProductUpdate(productId, update);
+    async registerPhone(pin: string) {
+        if (this.adapter.mode === 'cloud') {
+            await this.adapter.registerPhone(pin);
+        } else {
+            throw new Error('Phone registration not supported by this adapter');
+        }
     }
 
     /**
-     * Delete products from catalog
+     * Deregister the phone number.
+     * @param pin - The current 6-digit PIN
      */
-    async deleteProduct(productIds: string[]) {
-        return this.adapter.businessProductDelete(productIds);
+    async deregisterPhone(pin: string) {
+        if (this.adapter.mode === 'cloud') {
+            await this.adapter.deregisterPhone(pin);
+        } else {
+            throw new Error('Phone deregistration not supported by this adapter');
+        }
     }
 
     /**
-     * Get order details (if you received an order message)
+     * Block a user.
+     * @param jid - The user's JID
      */
-    async getOrderDetails(orderId: string, token: string) {
-        return this.adapter.businessGetOrderDetails(orderId, token);
+    async blockUser(jid: string) {
+        await this.adapter.blockContact(jid);
+    }
+
+    /**
+     * Unblock a user.
+     * @param jid - The user's JID
+     */
+    async unblockUser(jid: string) {
+        await this.adapter.unblockContact(jid);
     }
 }

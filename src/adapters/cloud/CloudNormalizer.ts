@@ -16,15 +16,35 @@ export class CloudNormalizer {
 
             const message: proto.IMessage = {};
 
+            // Handle Context (Quoted Message)
+            let contextInfo: proto.IContextInfo | undefined;
+            if (cloudMsg.context) {
+                contextInfo = {
+                    stanzaId: cloudMsg.context.id,
+                    participant: cloudMsg.context.from,
+                    quotedMessage: {
+                        conversation: '' // Placeholder as Cloud API doesn't provide quoted content
+                    }
+                };
+            }
+
             switch (cloudMsg.type) {
                 case 'text':
-                    message.conversation = cloudMsg.text?.body;
+                    if (contextInfo) {
+                        message.extendedTextMessage = {
+                            text: cloudMsg.text?.body,
+                            contextInfo: contextInfo
+                        };
+                    } else {
+                        message.conversation = cloudMsg.text?.body;
+                    }
                     break;
                 case 'image':
                     message.imageMessage = {
-                        url: cloudMsg.image?.id, // In Cloud API, we might need to fetch this ID to get the URL
+                        url: cloudMsg.image?.id,
                         mimetype: cloudMsg.image?.mime_type,
                         caption: cloudMsg.image?.caption,
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'video':
@@ -32,6 +52,7 @@ export class CloudNormalizer {
                         url: cloudMsg.video?.id,
                         mimetype: cloudMsg.video?.mime_type,
                         caption: cloudMsg.video?.caption,
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'audio':
@@ -39,6 +60,7 @@ export class CloudNormalizer {
                         url: cloudMsg.audio?.id,
                         mimetype: cloudMsg.audio?.mime_type,
                         ptt: cloudMsg.audio?.voice === true,
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'document':
@@ -47,6 +69,7 @@ export class CloudNormalizer {
                         mimetype: cloudMsg.document?.mime_type,
                         fileName: cloudMsg.document?.filename,
                         caption: cloudMsg.document?.caption,
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'location':
@@ -55,25 +78,37 @@ export class CloudNormalizer {
                         degreesLongitude: cloudMsg.location?.longitude,
                         name: cloudMsg.location?.name,
                         address: cloudMsg.location?.address,
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'interactive':
                     // Basic handling for interactive messages (buttons, lists)
-                    // This is a simplification; Baileys has more complex structures for this
                     if (cloudMsg.interactive?.button_reply) {
+                        message.buttonsResponseMessage = {
+                            selectedButtonId: cloudMsg.interactive.button_reply.id,
+                            selectedDisplayText: cloudMsg.interactive.button_reply.title,
+                            contextInfo: contextInfo
+                        };
+                        // Also set conversation for backward compatibility/simple text access
                         message.conversation = cloudMsg.interactive.button_reply.title;
                     } else if (cloudMsg.interactive?.list_reply) {
+                        message.listResponseMessage = {
+                            singleSelectReply: {
+                                selectedRowId: cloudMsg.interactive.list_reply.id
+                            },
+                            contextInfo: contextInfo
+                        };
                         message.conversation = cloudMsg.interactive.list_reply.title;
                     }
                     break;
                 case 'order':
                     message.orderMessage = {
-                        orderId: cloudMsg.order?.catalog_id, // Cloud API uses catalog_id as context sometimes, but order details are in product_items
+                        orderId: cloudMsg.order?.catalog_id,
                         itemCount: cloudMsg.order?.product_items?.length,
                         status: 1, // Default to PENDING
                         surface: 1, // CATALOG
                         message: cloudMsg.order?.text,
-                        // We might need to map product_items to orderMessage.items if we want full detail
+                        contextInfo: contextInfo
                     };
                     break;
                 case 'system': {
@@ -82,9 +117,7 @@ export class CloudNormalizer {
                     
                     const sysType = cloudMsg.system?.type;
                     if (sysType === 'user_changed_number') {
-                         // Map to a notification? For now, just text is fine, but we could try to map to protocol message if Baileys supports it.
-                         // Baileys doesn't have a direct "User Changed Number" protocol message type exposed easily in IMessage usually, 
-                         // it's often a stub.
+                         // Map to a notification? For now, just text is fine.
                     }
 
                     message.protocolMessage = {

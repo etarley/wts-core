@@ -41,6 +41,16 @@ const client = createClient({
 client.start({ port: 3000, webhookPath: "/webhook" });
 ```
 
+#### Retrieving Phone Number ID
+
+You can retrieve your **Phone Number ID** by making a GET request to the Facebook Graph API:
+
+```bash
+curl -X GET "https://graph.facebook.com/v24.0/YOUR_BUSINESS_ACCOUNT_ID/phone_numbers?access_token=YOUR_ACCESS_TOKEN"
+```
+
+Replace `YOUR_BUSINESS_ACCOUNT_ID` with your WhatsApp Business Account ID and `YOUR_ACCESS_TOKEN` with your System User Access Token.
+
 ### Baileys Setup
 
 To use Baileys (WebSocket connection), you don't need a Meta Developer account. You just need a phone with WhatsApp installed.

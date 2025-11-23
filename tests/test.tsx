@@ -60,11 +60,12 @@ client.on('message', async (context: unknown) => {
 
     // 3. Media Download
     if (body === 'media') {
-        const buffer = await ctx.download();
-        if (buffer) {
+        try {
+            const buffer = await ctx.download();
             await ctx.reply(`Received media of size: ${buffer.length} bytes`);
-        } else {
-            await ctx.reply('No media found in this message.');
+        } catch (error) {
+            console.error('Download failed:', error);
+            await ctx.reply('Failed to download media');
         }
     }
 

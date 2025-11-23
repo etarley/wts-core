@@ -71,7 +71,7 @@ export interface AdapterBase {
 
     readMessage(keys: proto.IMessageKey[]): Promise<void>;
 
-    downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer | null>;
+    downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer>;
 
     // User Management (Common)
     updateProfilePicture(jid: string, buffer: Buffer): Promise<void>;

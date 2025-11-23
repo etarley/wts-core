@@ -264,13 +264,8 @@ export class BaileysAdapter implements BaileysAdapterInterface {
         await this.sock.readMessages(keys);
     }
 
-    async downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer | null> {
-        try {
-            return await downloadMediaMessage(message as WAMessage, 'buffer', {});
-        } catch (error) {
-            console.error('Baileys download error:', error);
-            return null;
-        }
+    async downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer> {
+        return await downloadMediaMessage(message as WAMessage, 'buffer', {});
     }
 
     // User Management

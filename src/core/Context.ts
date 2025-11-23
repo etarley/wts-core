@@ -320,7 +320,7 @@ export class Context<E extends Env = Env> {
     /**
      * Easy access to quoted message context
      */
-    get quoted(): Context<E> | null {
+    get quoted(): QuotedContext<E> | null {
         const msg = this.raw.message;
         // Find contextInfo in common message types
         const content = msg?.extendedTextMessage || 
@@ -328,7 +328,9 @@ export class Context<E extends Env = Env> {
                         msg?.videoMessage || 
                         msg?.stickerMessage ||
                         msg?.audioMessage ||
-                        msg?.documentMessage;
+                        msg?.documentMessage ||
+                        msg?.buttonsResponseMessage ||
+                        msg?.listResponseMessage;
                         
         const ctxInfo = content?.contextInfo;
 
@@ -347,7 +349,29 @@ export class Context<E extends Env = Env> {
             pushName: undefined
         };
 
-        return new Context<E>(quotedMsg, this.adapter, this.client, this._executionCtx, this.env);
+        return new QuotedContext<E>(quotedMsg, this.adapter, this.client, this._executionCtx, this.env);
+    }
+
+    /**
+     * Fetch the full quoted message from the store.
+     * Useful when the quoted message content is not available in the current message (e.g. Cloud API).
+     */
+    async fetchQuoted(): Promise<Context<E> | null> {
+        const quoted = this.quoted;
+        if (!quoted) return null;
+
+        // If we already have the body, return it
+        if (quoted.body) return quoted;
+
+        // Try to load from store
+        if (this.client.store) {
+            const storedMsg = await this.client.store.loadMessage(quoted.from, quoted.id);
+            if (storedMsg) {
+                return new Context<E>(storedMsg, this.adapter, this.client, this._executionCtx, this.env);
+            }
+        }
+
+        return quoted;
     }
 
     /**
@@ -362,9 +386,9 @@ export class Context<E extends Env = Env> {
 
     /**
      * Download media from the message if it exists.
-     * Returns Buffer or null if no media.
+     * Returns Buffer. Throws error if no media or download fails.
      */
-    async download(): Promise<Buffer | null> {
+    async download(): Promise<Buffer> {
         return this.adapter.downloadMedia(this.raw);
     }
 
@@ -765,5 +789,31 @@ export class Context<E extends Env = Env> {
         }
         
         return storage.save(finalFileName, buffer);
+    }
+}
+
+/**
+ * A specialized Context for quoted messages.
+ * It warns developers about missing content in Cloud API.
+ */
+export class QuotedContext<E extends Env = Env> extends Context<E> {
+    /**
+     * The actual text content (flattened).
+     * 
+     * @warning **Cloud API Limitation**: This field will be EMPTY in Cloud API webhooks because WhatsApp does not send the quoted message content.
+     * Use `await ctx.fetchQuoted()` to retrieve the full message content from your store.
+     */
+    override get body(): string {
+        return super.body;
+    }
+
+    /**
+     * Get the normalized message content.
+     * 
+     * @warning **Cloud API Limitation**: This field will be EMPTY in Cloud API webhooks because WhatsApp does not send the quoted message content.
+     * Use `await ctx.fetchQuoted()` to retrieve the full message content from your store.
+     */
+    override get content(): proto.IMessage | null | undefined {
+        return super.content;
     }
 }

@@ -14,7 +14,7 @@ class MockAdapter extends EventEmitter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return { key: { id: 'mock-id' } } as any;
     }
-    async downloadMedia() {
+    async downloadMedia(): Promise<Buffer> {
         console.log('MockAdapter.downloadMedia called');
         return Buffer.from('mock-media');
     }

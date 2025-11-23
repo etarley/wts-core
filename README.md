@@ -64,6 +64,16 @@ When using the Cloud API, you need to configure the **Callback URL** and **Verif
    - If successful, you'll see: `✅ Webhook verified successfully!`
    - If failed, you'll see: `❌ Webhook verification failed! Token mismatch.`
 
+### Retrieving Phone Number ID
+
+You can retrieve your **Phone Number ID** by making a GET request to the Facebook Graph API:
+
+```bash
+curl -X GET "https://graph.facebook.com/v24.0/YOUR_BUSINESS_ACCOUNT_ID/phone_numbers?access_token=YOUR_ACCESS_TOKEN"
+```
+
+Replace `YOUR_BUSINESS_ACCOUNT_ID` with your WhatsApp Business Account ID and `YOUR_ACCESS_TOKEN` with your System User Access Token.
+
 ## Documentation
 
 For detailed documentation, please visit the [docs](./docs) folder:

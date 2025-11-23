@@ -444,6 +444,7 @@ export class CloudAdapter implements CloudAdapterInterface {
                     for (const msg of value.messages) {
                         const normalized = CloudNormalizer.normalizeMessage(msg, value.metadata, value.contacts);
                         this.emit('message', normalized, env, ctx);
+                        this.emit('messages.upsert', { messages: [normalized], type: 'notify' }, env, ctx);
                     }
                 }
 
@@ -776,7 +777,7 @@ export class CloudAdapter implements CloudAdapterInterface {
             start,
             end
         });
-        return this.apiRequest(`/${flowId}/metrics?${params.toString()}`, 'GET');
+        return this.apiRequest(`https://graph.facebook.com/v24.0/${flowId}/metrics?${params.toString()}`, 'GET');
     }
 
     async deleteTemplate(name: string) {
@@ -790,7 +791,7 @@ export class CloudAdapter implements CloudAdapterInterface {
     }
 
     async unpauseTemplate(templateId: string): Promise<{ success: boolean; reason?: string }> {
-        return this.apiRequest(`/${templateId}/unpause`, 'POST') as Promise<{ success: boolean; reason?: string }>;
+        return this.apiRequest(`https://graph.facebook.com/v24.0/${templateId}/unpause`, 'POST') as Promise<{ success: boolean; reason?: string }>;
     }
 
     async compareTemplates(templateId: string, compareWith: string[], start: number, end: number) {
@@ -799,7 +800,7 @@ export class CloudAdapter implements CloudAdapterInterface {
             start: start.toString(),
             end: end.toString()
         });
-        return this.apiRequest(`/${templateId}/compare?${params.toString()}`, 'GET');
+        return this.apiRequest(`https://graph.facebook.com/v24.0/${templateId}/compare?${params.toString()}`, 'GET');
     }
 
     // --- Account Settings ---
@@ -987,19 +988,25 @@ export class CloudAdapter implements CloudAdapterInterface {
         });
     }
 
-    async downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer | null> {
+    async downloadMedia(message: proto.IWebMessageInfo): Promise<Buffer> {
         let mediaId: string | null | undefined = null;
         if (message.message?.imageMessage?.url) mediaId = message.message.imageMessage.url;
         if (message.message?.videoMessage?.url) mediaId = message.message.videoMessage.url;
+        if (message.message?.audioMessage?.url) mediaId = message.message.audioMessage.url;
+        if (message.message?.documentMessage?.url) mediaId = message.message.documentMessage.url;
+        if (message.message?.stickerMessage?.url) mediaId = message.message.stickerMessage.url;
 
-        if (!mediaId) return null;
+        if (!mediaId) throw new Error("No media found in message");
 
         const mediaInfo = await this.getMediaUrl(mediaId);
-        if (!mediaInfo?.url) return null;
+        if (!mediaInfo?.url) throw new Error("Failed to retrieve media URL");
 
         const response = await fetch(mediaInfo.url, {
             headers: { 'Authorization': `Bearer ${this.options.cloudApi!.accessToken}` }
         });
+        
+        if (!response.ok) throw new Error(`Failed to download media: ${response.statusText}`);
+
         const arrayBuffer = await response.arrayBuffer();
         return Buffer.from(arrayBuffer);
     }
@@ -1534,7 +1541,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         throw new Error('Method not implemented.');
     }
     async getMediaUrl(mediaId: string): Promise<CloudMediaResponse> {
-        return this.apiRequest(`/${mediaId}`, 'GET') as Promise<CloudMediaResponse>;
+        return this.apiRequest(`https://graph.facebook.com/v24.0/${mediaId}`, 'GET') as Promise<CloudMediaResponse>;
     }
 
     // Events
@@ -1757,7 +1764,7 @@ export class CloudAdapter implements CloudAdapterInterface {
     }
 
     async deleteMedia(mediaId: string): Promise<void> {
-        await this.apiRequest(`/${mediaId}`, 'DELETE');
+        await this.apiRequest(`https://graph.facebook.com/v24.0/${mediaId}`, 'DELETE');
     }
 
     // Legacy/Alias methods for CloudAdapterInterface

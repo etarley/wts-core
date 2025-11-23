@@ -9,9 +9,10 @@
 
     // Bundler mode
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "./dist",
 
     // Best practices
     "strict": true,
@@ -19,6 +20,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+
+    // JSX Support
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

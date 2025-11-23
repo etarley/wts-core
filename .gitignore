@@ -38,3 +38,7 @@ auth_info
 # Editor config
 .cursor
 .windsurf
+
+# Cloudflare
+.wrangler
+.agent

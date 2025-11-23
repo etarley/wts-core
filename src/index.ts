@@ -1,42 +1,97 @@
-
 import { Client } from './core/Client';
 import { BaileysAdapter } from './adapters/bailey/BaileysAdapter';
-import type { UniversalOptions } from './types';
+import { CloudAdapter } from './adapters/cloud/CloudAdapter';
+import type { UniversalOptions, WtsPlugin, Env, InferPluginAPI } from './types';
+import type { BaileysAdapterInterface, CloudAdapterInterface } from './core/interfaces';
 
-/**
- * Create a new Universal WhatsApp Client.
- * 
- * This factory function automatically selects the best adapter based on your config:
- * - If `cloudApi` keys are present -> Uses Official Cloud API (HTTP/Webhook)
- * - Otherwise -> Uses Baileys (WebSocket/TCP)
- * 
- * @param options - Configuration for Auth, Logging, and Adapter settings
- */
-export const createClient = (options: UniversalOptions = {}) => {
+// Overloads for createClient to return specific client types
+export function createClient<E extends Env = Env, P extends WtsPlugin[] = []>(
+    options: UniversalOptions<P> & { cloudApi: NonNullable<UniversalOptions['cloudApi']> }
+): Client<E, P, CloudAdapterInterface> & InferPluginAPI<P>;
+
+export function createClient<E extends Env = Env, P extends WtsPlugin[] = []>(
+    options?: UniversalOptions<P> & { cloudApi?: undefined }
+): Client<E, P, BaileysAdapterInterface> & InferPluginAPI<P>;
+
+export function createClient<E extends Env = Env, P extends WtsPlugin[] = []>(
+    options: UniversalOptions<P> = {} as UniversalOptions<P>
+) {
     // 1. Detect Adapter Mode
-    // In the future, we will check for options.cloudApi here.
-    // const isCloud = !!options.cloudApi; 
+    let adapter;
 
-    // For now, we default to Baileys as it's the only implemented adapter.
-    const adapter = new BaileysAdapter(options);
+    // This runtime check aligns with the overloads
+    if (options.cloudApi) {
+        adapter = new CloudAdapter(options);
+    } else {
+        adapter = new BaileysAdapter(options);
+    }
 
     // 2. Initialize the Core Client with the chosen Adapter
-    return new Client(adapter);
-};
+    const client = new Client<E, P>(adapter, options.plugins);
+
+    // 3. Bind Store if provided
+    if (options.store) {
+        client.store = options.store;
+    }
+
+    return client as unknown as Client<E, P, CloudAdapterInterface | BaileysAdapterInterface> & InferPluginAPI<P>;
+}
 
 // Export Types for the end user
 export * from './core/Client';
 export * from './core/Context';
-export * from './resources/ChatResource';
-export * from './resources/UserResource';
-export * from './resources/ContactResource';
-export * from './resources/GroupResource';
-export * from './resources/StatusResource';
-export { NewsletterResource } from './resources/NewsletterResource';
-export { CallResource } from './resources/CallResource';
-export { BusinessResource } from './resources/BusinessResource';
-export { CommunityResource } from './resources/CommunityResource';
-export { PrivacyResource } from './resources/PrivacyResource';
+export * from './core/interfaces'; // Make sure interfaces are exported
+
+// Export Plugins
+export * from './plugins/chat';
+export * from './plugins/user';
+export * from './plugins/contact';
+export * from './plugins/group';
+export * from './plugins/status';
+export * from './plugins/newsletter';
+export * from './plugins/call';
+export * from './plugins/business';
+export * from './plugins/community';
+export * from './plugins/privacy';
+export * from './plugins/templates';
+export * from './plugins/flows';
+export * from './plugins/broadcast';
+export * from './plugins/business-settings';
+
 export * from './core/Media';
 export * from './core/Store';
 export * from './types';
+export * from './core/auth/AuthStrategy';
+export * from './core/auth/AuthStore';
+export * from './core/auth/LocalAuthStrategy';
+export * from './core/auth/StoreAuthStrategy';
+export * from './core/Bot';
+export * from './core/SessionManager';
+
+export * from './middleware/session';
+export * from './middleware/acl';
+
+export * from './core/storage/types';
+export * from './core/storage/MemoryAdapter';
+export * from './core/storage/JSONFileAdapter';
+export * from './core/storage/kv-storage-adapter';
+
+export * from './adapters/storage/BetterSQLite3Adapter';
+export * from './adapters/storage/BunSQLiteAdapter';
+export * from './adapters/storage/LibSQLAdapter';
+
+export * from './middleware/error-boundary';
+export * from './utils/StickerFormatter';
+
+export * from './plugins/AntiDeletePlugin';
+export * from './plugins/WelcomePlugin';
+export * from './plugins/LoggerPlugin';
+
+import * as FlowBuilder from './builders/FlowBuilder';
+export { FlowBuilder };
+export * from './builders/TemplateBuilder';
+
+export * from './jsx';
+
+export * from './utils/FlowResponse';
+export * from './utils/VCardBuilder';

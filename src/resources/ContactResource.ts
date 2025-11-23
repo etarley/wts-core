@@ -11,6 +11,19 @@ export class ContactResource {
         await this.adapter.unblockContact(jid);
     }
 
+    async getBlocklist() {
+        if (this.adapter.mode === 'baileys') {
+            return this.adapter.fetchBlocklist();
+        }
+        return [];
+    }
+
+    async subscribePresence(jid: string) {
+        if (this.adapter.mode === 'baileys') {
+            return this.adapter.presenceSubscribe(jid);
+        }
+    }
+
     async getProfilePicture(jid: string) {
         return this.adapter.getProfilePicture(jid);
     }

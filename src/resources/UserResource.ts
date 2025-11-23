@@ -14,6 +14,13 @@ export class UserResource {
         }
     }
 
+    async removeProfilePicture() {
+        const me = this.adapter.getMe();
+        if (me?.id) {
+            await this.adapter.removeProfilePicture(me.id);
+        }
+    }
+
     async updateStatus(text: string) {
         await this.adapter.updateStatus(text);
     }

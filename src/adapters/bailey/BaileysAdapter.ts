@@ -1,5 +1,5 @@
 import makeWASocket, { DisconnectReason, type WASocket, proto, type AnyMessageContent, type ConnectionState, type WAMessage, type GroupMetadata, type NewsletterMetadata, type NewsletterUpdate, generateWAMessageFromContent, downloadMediaMessage, type ProductCreate, type ProductUpdate } from '@whiskeysockets/baileys';
-// import WebSocket from 'ws';
+import WebSocket from 'ws';
 import { type Boom } from '@hapi/boom';
 import { createLogger } from '../../utils/logger';
 import type { BaileysAdapterInterface, SendMessageOptions, AdapterCapabilities } from '../../core/interfaces';
@@ -83,12 +83,13 @@ export class BaileysAdapter implements BaileysAdapterInterface {
         // Detect environment
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isNode = typeof process !== 'undefined' && (process as any).release?.name === 'node';
+        const isBun = typeof Bun !== 'undefined';
 
         if (usingLocalAuth && typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
             console.warn('[BaileysAdapter] LocalAuthStrategy is using the local file system. For production environments with ephemeral storage (Docker/Kubernetes/Serverless), use StoreAuthStrategy with a persistent database-backed AuthStore.');
         }
 
-        console.log(`[BaileysAdapter] Connecting... Environment: isNode=${isNode}`);
+        console.log(`[BaileysAdapter] Connecting... Environment: isNode=${isNode}, isBun=${isBun}`);
 
         const socketConfig = {
             auth: state,
@@ -102,6 +103,9 @@ export class BaileysAdapter implements BaileysAdapterInterface {
                 return undefined;
             },
             ...(this.options.makeSignalRepository ? { makeSignalRepository: this.options.makeSignalRepository } : {}),
+            // Explicitly provide WebSocket implementation for Node/Bun environments
+            // This ensures we have setMaxListeners which Baileys expects
+            ...(isNode || isBun ? { webSocket: WebSocket } : {}),
             ...this.options.socketConfig
         };
 

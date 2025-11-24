@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { proto, type AnyMessageContent, type WAMessage } from '@whiskeysockets/baileys';
+import { proto, type AnyMessageContent, type WAMessage, type GroupMetadata } from '@whiskeysockets/baileys';
 import type { IAdapter } from './interfaces';
 import type { Client } from './Client';
 import type { Env, ExecutionContext } from '../types';
@@ -35,6 +35,7 @@ export class Context<E extends Env = Env> {
     private _executionCtx?: ExecutionContext;
     public env: E['Bindings'] = {} as unknown as E['Bindings'];
     public session: Record<string, unknown> = {};
+    private _groupMetadataCache?: GroupMetadata;
 
     constructor(
         public readonly raw: proto.IWebMessageInfo,
@@ -126,8 +127,40 @@ export class Context<E extends Env = Env> {
     /**
      * Is this a group message?
      */
-    public isGroup(): this is Context<E> & { raw: { key: { remoteJid: `${string}@g.us` } } } {
+    public isGroup(): this is Context<E> & { raw: { key: { remoteJid: `${string}@g.us` } }; getGroupName(): Promise<string | undefined>; getGroupMetadata(): Promise<GroupMetadata> } {
         return this.from.endsWith('@g.us');
+    }
+
+    /**
+     * Get the group name/subject.
+     * Only available when isGroup() returns true.
+     * Results are cached to avoid redundant API calls.
+     */
+    async getGroupName(): Promise<string | undefined> {
+        if (!this.isGroup()) {
+            throw new Error('getGroupName() can only be called on group messages');
+        }
+        const metadata = await this.getGroupMetadata();
+        return metadata.subject;
+    }
+
+    /**
+     * Get full group metadata (name, description, participants, etc.).
+     * Only available when isGroup() returns true.
+     * Results are cached to avoid redundant API calls.
+     */
+    async getGroupMetadata(): Promise<GroupMetadata> {
+        if (!this.isGroup()) {
+            throw new Error('getGroupMetadata() can only be called on group messages');
+        }
+        
+        if (this._groupMetadataCache) {
+            return this._groupMetadataCache;
+        }
+
+        const metadata = await this.adapter.groupMetadata(this.from);
+        this._groupMetadataCache = metadata;
+        return metadata;
     }
 
     // Type Guards

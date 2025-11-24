@@ -5,6 +5,7 @@ import { MemoryAdapter } from './storage/MemoryAdapter';
 export interface IStore {
     bind(ev: BaileysEventEmitter): void;
     loadMessage(jid: string, id: string): Promise<proto.IWebMessageInfo | undefined>;
+    getContact(jid: string): Promise<Contact | undefined>;
 }
 
 export class MemoryStore implements IStore {
@@ -33,6 +34,10 @@ export class MemoryStore implements IStore {
 
     async loadMessage(jid: string, id: string): Promise<proto.IWebMessageInfo | undefined> {
         return this.adapter.loadMessage(jid, id);
+    }
+
+    async getContact(jid: string): Promise<Contact | undefined> {
+        return this.adapter.getContact(jid);
     }
 }
 

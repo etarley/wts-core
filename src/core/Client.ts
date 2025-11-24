@@ -71,9 +71,21 @@ export class Client<E extends Env = Env, P extends WtsPlugin[] = WtsPlugin[], A 
 
         // Forward adapter events
         this.adapter.on('ready', () => this.emit('ready'));
-        this.adapter.on('message', (data: unknown, env: unknown, ctx: unknown) => {
+        this.adapter.on('message', async (data: unknown, env: unknown, ctx: unknown) => {
             if (data && typeof data === 'object' && 'key' in data) {
                 const msg = data as proto.IWebMessageInfo;
+
+                // Fix: Populate pushName from store if missing (common in Group messages)
+                if (!msg.pushName && this.store && msg.key) {
+                    const sender = msg.key.participant || msg.key.remoteJid;
+                    if (sender) {
+                        const contact = await this.store.getContact(sender);
+                        if (contact) {
+                            msg.pushName = contact.notify || contact.name || undefined;
+                        }
+                    }
+                }
+
                 const context = new Context<E>(
                     msg,
                     this.adapter,

@@ -1,6 +1,6 @@
 {
   "name": "wts-core",
-  "version": "1.0.5",
+  "version": "1.0.4",
   "description": "A modern, Hono-like abstraction for WhatsApp automation supporting Baileys and Cloud API.",
   "author": "Etarley Taveras",
   "license": "MIT",

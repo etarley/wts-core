@@ -41,9 +41,11 @@ type MyEnv = {
 };
 
 const adapter = new MockAdapter();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const client = new Client<MyEnv>(adapter as any);
 
 // 1. Use Global Middleware
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 client.use(logger() as any);
 
 // 2. Global Error Handler

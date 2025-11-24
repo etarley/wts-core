@@ -1,6 +1,7 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
-import { createClient, chat, user, Context, Media, } from 'wts-core';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createClient, chat, user, Context, Media, h, Fragment } from 'wts-core';
 
 // Set to true if you want to test by sending messages to yourself
 const ALLOW_SELF_MESSAGES = true;

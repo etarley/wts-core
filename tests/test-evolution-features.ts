@@ -3,8 +3,6 @@ import type { IAdapter } from '../src/core/interfaces';
 import { EventEmitter } from 'events';
 
 // Mock Adapter
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 class MockAdapter extends EventEmitter {
     async init() {}
     async close() {}

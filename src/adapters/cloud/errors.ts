@@ -24,8 +24,8 @@ export const CloudErrorMapping: Record<number, new (cause?: unknown) => WhatsApp
 } as const;
 
 export function mapCloudError(error: unknown): WhatsAppError {
-    const code = (error as any)?.code;
-    const message = (error as any)?.message || 'Unknown Cloud API Error';
+    const code = (error as { code?: number })?.code;
+    const message = (error as { message?: string })?.message || 'Unknown Cloud API Error';
     
     if (code && CloudErrorMapping[code]) {
         return new CloudErrorMapping[code](error);

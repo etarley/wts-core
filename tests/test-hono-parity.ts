@@ -61,6 +61,7 @@ const mockEnv: MyBindings = {
 };
 
 const adapter = new MockAdapter();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const client = new Client<MyEnv>(adapter as any);
 
 // Middleware using Env

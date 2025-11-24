@@ -27,12 +27,14 @@ export class LocalAuthStrategy implements AuthStrategy {
         return Promise.resolve();
     }
 
-    async getKeys(_type: string, _ids: string[]) {
+    async getKeys(type: string, ids: string[]) {
+        void type; void ids;
         // This is handled by the state object
         return {};
     }
 
-    async setKeys(_data: Record<string, Record<string, unknown>>) {
+    async setKeys(data: Record<string, Record<string, unknown>>) {
+        void data;
         // This is handled by the state object
         return Promise.resolve();
     }

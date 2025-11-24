@@ -115,7 +115,6 @@ async function testFlowCrypto() {
         // Verify we can decrypt it back (using the flipped IV)
         const flippedIv = new Uint8Array(decryptedIv);
         for(let i=0; i < flippedIv.length; i++) {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             flippedIv[i] = flippedIv[i]! ^ 0xFF;
         }
 

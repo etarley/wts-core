@@ -15,9 +15,9 @@ const adapter = new CloudAdapter({
     }
 });
 
+const storageAdapter = new MemoryAdapter();
 const client = new Client(adapter);
-client.store = new Store(new MemoryAdapter());
-client.store.bind(client);
+client.store = new Store(storageAdapter);
 
 // 1. Simulate receiving the original message
 const originalMsg = CloudNormalizer.normalizeMessage({
@@ -27,9 +27,6 @@ const originalMsg = CloudNormalizer.normalizeMessage({
     type: 'text',
     text: { body: 'Original Message Content' }
 }, { display_phone_number: '123', phone_number_id: '456' });
-
-// Manually trigger upsert since we are not running a server
-client.emit('messages.upsert', { messages: [originalMsg], type: 'notify' });
 
 // 2. Simulate receiving a reply
 const replyMsg = CloudNormalizer.normalizeMessage({
@@ -51,6 +48,9 @@ const ctx = new Context(replyMsg, adapter, client);
 // 3. Test fetchQuoted
 (async () => {
     try {
+        // Manually save the original message to the store (simulating what would happen in production)
+        await storageAdapter.saveMessages([originalMsg]);
+        
         console.log('Fetching quoted message...');
         const quoted = await ctx.fetchQuoted();
         
@@ -64,3 +64,4 @@ const ctx = new Context(replyMsg, adapter, client);
         process.exit(1);
     }
 })();
+

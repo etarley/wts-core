@@ -765,7 +765,7 @@ export class Context<E extends Env = Env> {
                 return { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: btn.text, id: btn.id }) };
             });
 
-            let header: any = undefined;
+            let header: Record<string, unknown> | undefined = undefined;
             if (typeof card.header === 'string') {
                 header = { title: card.header, hasMediaAttachment: false };
             } else if (card.header && 'image' in card.header) {

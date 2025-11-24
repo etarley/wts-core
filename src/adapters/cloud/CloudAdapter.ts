@@ -390,7 +390,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         });
         
         if (!response.ok) {
-            const data = await response.json() as any;
+            const data = await response.json() as { error: unknown };
             throw mapCloudError(data.error);
         }
     }
@@ -527,7 +527,7 @@ export class CloudAdapter implements CloudAdapterInterface {
 
                 if (value.group_settings_update) {
                     const update = value.group_settings_update;
-                    const changes: any = { id: update.group_id };
+                    const changes: { id: string; subject?: string; desc?: string; icon?: boolean } = { id: update.group_id };
                     
                     if (update.group_subject?.update_successful) {
                         changes.subject = update.group_subject.text;
@@ -739,7 +739,7 @@ export class CloudAdapter implements CloudAdapterInterface {
             body.type = 'sticker';
              
             body.sticker = {
-                id: (content.stickerMessage as any).stickerId || ''
+                id: (content.stickerMessage as { stickerId?: string }).stickerId || ''
             };
         } else if ('poll' in content || 'pollCreationMessage' in content) {
             throw new Error('Polls are not currently supported in Cloud API.');
@@ -820,10 +820,10 @@ export class CloudAdapter implements CloudAdapterInterface {
     }
 
 
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private transformInteractive(interactive: any): any {
-        const result: any = {
+    private transformInteractive(interactive: any): Record<string, unknown> {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result: Record<string, any> = {
             body: interactive.body,
             footer: interactive.footer
         };
@@ -881,9 +881,9 @@ export class CloudAdapter implements CloudAdapterInterface {
                     result.type = 'button';
                     result.action = {
                         buttons: buttons
-                            .filter((btn: any) => btn.name === 'quick_reply')
-                            .map((btn: any) => {
-                                const p = JSON.parse(btn.buttonParamsJson);
+                            .filter((btn: { name?: string }) => btn.name === 'quick_reply')
+                            .map((btn: { buttonParamsJson?: string }) => {
+                                const p = JSON.parse(btn.buttonParamsJson || '{}');
                                 return {
                                     type: 'reply',
                                     reply: {
@@ -982,7 +982,7 @@ export class CloudAdapter implements CloudAdapterInterface {
                 'Authorization': `Bearer ${this.options.cloudApi!.accessToken}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name, category, components: components as any, language })
+            body: JSON.stringify({ name, category, components: components as unknown, language })
         });
         return response.json();
     }
@@ -1096,9 +1096,9 @@ export class CloudAdapter implements CloudAdapterInterface {
         const data = await response.json();
         
         // If flowJson is provided, update it immediately (as create only makes draft)
-        if (_flowJson && (data as any).id) {
+        if (_flowJson && (data as { id?: string }).id) {
             try {
-                await this.updateFlowJSON((data as any).id, _flowJson);
+                await this.updateFlowJSON((data as { id: string }).id, _flowJson);
             } catch (e) {
                 console.warn('Failed to upload Flow JSON during creation:', e);
             }
@@ -1263,7 +1263,7 @@ export class CloudAdapter implements CloudAdapterInterface {
             const cleanId = jid.replace('@g.us', '');
             const isGroup = jid.includes('@g.us') || (jid.length > 18 && !jid.includes('@'));
             
-            const body: any = {
+            const body: { messaging_product: string; recipient_type: string; to: string; type: string; pin: { type: string; message_id: string; expiration_days?: number } } = {
                 messaging_product: 'whatsapp',
                 recipient_type: isGroup ? 'group' : 'individual',
                 to: cleanId,
@@ -1323,7 +1323,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         const phoneId = phoneDetails.id; // Use Phone ID for group creation
         
         const url = `https://graph.facebook.com/v24.0/${phoneId}/groups`;
-        const body: any = { 
+        const body: { messaging_product: string; subject: string; description?: string; join_approval_mode?: string } = { 
             messaging_product: 'whatsapp',
             subject, 
             description
@@ -1343,7 +1343,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         const data = await response.json() as { group_id: string; invite_link?: string };
         
         if (!response.ok) {
-             throw mapCloudError((data as any).error);
+             throw mapCloudError((data as { group_id?: string; error?: unknown }).error);
         }
 
         return {
@@ -1482,7 +1482,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${this.options.cloudApi!.accessToken}` }
         });
-        const data = await response.json() as { data: { groups: any[] } };
+        const data = await response.json() as { data?: { groups?: Array<{ id: string; subject?: string; description?: string; participants?: Array<{ wa_id: string; admin?: boolean }>; creation_timestamp?: number; join_approval_mode?: string; total_participant_count?: number }> } };
         
         const groups: Record<string, GroupMetadata> = {};
         if (data.data?.groups) {
@@ -1490,7 +1490,7 @@ export class CloudAdapter implements CloudAdapterInterface {
                 groups[g.id] = {
                     id: g.id,
                     subject: g.subject,
-                    creation: parseInt(g.created_at || '0'),
+                    creation: parseInt(String(g.creation_timestamp || 0)),
                     owner: undefined,
                     participants: [],
                     desc: undefined
@@ -1500,19 +1500,24 @@ export class CloudAdapter implements CloudAdapterInterface {
         return groups;
     }
 
-    async groupAcceptInvite(_code: string) {
+    async groupAcceptInvite(code: string) {
+        void code;
         throw new Error('Method not implemented on Cloud API.');
     }
-    async groupAcceptInviteV4(_key: string, _invite: unknown) {
+    async groupAcceptInviteV4(key: string, invite: unknown) {
+        void key; void invite;
         throw new Error('Method not implemented on Cloud API.');
     }
-    async groupToggleEphemeral(_jid: string, _ephemeralExpiration: number) {
+    async groupToggleEphemeral(jid: string, ephemeralExpiration: number) {
+        void jid; void ephemeralExpiration;
         throw new Error('Method not implemented on Cloud API.');
     }
-    async groupSettingUpdate(_jid: string, _setting: 'announcement' | 'locked' | 'not_announcement' | 'unlocked') {
+    async groupSettingUpdate(jid: string, setting: 'announcement' | 'locked' | 'not_announcement' | 'unlocked') {
+        void jid; void setting;
         throw new Error('Method not implemented on Cloud API.');
     }
-    async groupGetInviteInfo(_code: string) {
+    async groupGetInviteInfo(code: string) {
+        void code;
         return undefined;
     }
     async groupMetadata(jid: string) {
@@ -1521,7 +1526,7 @@ export class CloudAdapter implements CloudAdapterInterface {
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${this.options.cloudApi!.accessToken}` }
         });
-        const data = await response.json() as any;
+        const data = await response.json() as { error?: unknown; id?: string; subject?: string; description?: string; creation_timestamp?: number; participants?: Array<{ wa_id: string; admin?: boolean }>; join_approval_mode?: string; total_participant_count?: number };
         
         if (data.error) throw mapCloudError(data.error);
 
@@ -1531,7 +1536,7 @@ export class CloudAdapter implements CloudAdapterInterface {
             desc: data.description,
             creation: data.creation_timestamp,
             owner: undefined,
-            participants: data.participants?.map((p: any) => ({
+            participants: data.participants?.map(p => ({
                 id: p.wa_id,
                 admin: p.admin ? 'admin' : null
             })) || [],

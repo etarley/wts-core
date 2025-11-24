@@ -17,7 +17,7 @@ describe('BunSQLiteAdapter', () => {
     afterEach(async () => {
         try {
             await unlink(dbName);
-        } catch (e) {
+        } catch {
             // Ignore
         }
     });

@@ -28,7 +28,7 @@ export function createClient<E extends Env = Env, P extends WtsPlugin[] = []>(
     }
 
     // 2. Initialize the Core Client with the chosen Adapter
-    const client = new Client<E, P>(adapter, options.plugins);
+    const client = new Client<E, P>(adapter, options, options.plugins);
 
     // 3. Bind Store (Default to MemoryStore if not provided)
     if (options.store) {

@@ -41,6 +41,11 @@ export type InferPluginAPI<P extends WtsPlugin[]> = UnionToIntersection<
 export interface UniversalOptions<P extends WtsPlugin[] = WtsPlugin[]> {
     printQR?: boolean;
     readConfirmations?: boolean;
+    /**
+     * Ignore messages sent by the bot itself to prevent infinite loops.
+     * @default true
+     */
+    ignoreOwnMessages?: boolean;
     authStrategy?: AuthStrategy | string; 
     phoneNumber?: string;
     socketConfig?: Partial<SocketConfig>;

@@ -1,7 +1,7 @@
 import type { IAdapter, CloudAdapterInterface, FlowRequestData, FlowResponseData, AdapterCapabilities } from './interfaces';
 import { Context } from './Context';
 import { proto } from '@whiskeysockets/baileys';
-import type { Env, ExecutionContext, Handler, WtsPlugin, InferPluginAPI, FilterFn, ClientEvents } from '../types';
+import type { Env, ExecutionContext, Handler, WtsPlugin, InferPluginAPI, FilterFn, ClientEvents, UniversalOptions } from '../types';
 import type { IStore } from './Store';
 import { Router } from '../router';
 import { compose } from '../compose';
@@ -31,6 +31,7 @@ export class Client<E extends Env = Env, P extends WtsPlugin[] = WtsPlugin[], A 
     public readonly groups: GroupsResource;
 
     public store?: IStore;
+    private options: UniversalOptions<P>;
 
     private eventHandlers: Map<string, ((...args: unknown[]) => void)[]> = new Map();
     private errorHandler: ((err: Error, ctx: Context<E>) => void) | null = null;
@@ -50,8 +51,9 @@ export class Client<E extends Env = Env, P extends WtsPlugin[] = WtsPlugin[], A 
         return this as unknown as Client<NewE, P, A> & InferPluginAPI<P>;
     }
 
-    constructor(public readonly adapter: A, plugins?: P) {
+    constructor(public readonly adapter: A, options: UniversalOptions<P> = {}, plugins?: P) {
         super();
+        this.options = options;
         // console.log(`wts-core v${VERSION}`);
 
         // Initialize Core Resources
@@ -74,6 +76,11 @@ export class Client<E extends Env = Env, P extends WtsPlugin[] = WtsPlugin[], A 
         this.adapter.on('message', async (data: unknown, env: unknown, ctx: unknown) => {
             if (data && typeof data === 'object' && 'key' in data) {
                 const msg = data as proto.IWebMessageInfo;
+
+                // Filter own messages if ignoreOwnMessages is enabled (default: true)
+                if (this.options.ignoreOwnMessages !== false && msg.key?.fromMe) {
+                    return; // Skip processing own messages to prevent infinite loops
+                }
 
                 // Fix: Populate pushName from store if missing (common in Group messages)
                 if (!msg.pushName && this.store && msg.key) {

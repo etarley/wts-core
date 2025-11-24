@@ -29,7 +29,7 @@ const runTestDirect = async () => {
     console.log('Starting Evolution Features Test (Direct Client)...');
 
     const adapter = new MockAdapter();
-    const client = new Client(adapter as unknown as IAdapter, [logger()]);
+    const client = new Client(adapter as unknown as IAdapter, { plugins: [logger()] });
     
     await client.connect();
     console.log('Client initialized');

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { Context } from './Context';
 import type { IAdapter } from './interfaces';
 import type { Client } from './Client';
@@ -22,16 +22,16 @@ describe('Context', () => {
 
     beforeEach(() => {
         mockAdapter = {
-            sendMessage: vi.fn().mockResolvedValue({ key: { id: 'sent-id' } }),
-            downloadMedia: vi.fn(),
-            getMe: vi.fn(),
-            readMessage: vi.fn(),
-            sendPresenceUpdate: vi.fn(),
+            sendMessage: mock(() => Promise.resolve({ key: { id: 'sent-id' } })),
+            downloadMedia: mock(),
+            getMe: mock(),
+            readMessage: mock(),
+            sendPresenceUpdate: mock(),
             mode: 'cloud'
         } as unknown as IAdapter;
 
         mockClient = {
-            waitFor: vi.fn()
+            waitFor: mock()
         } as unknown as Client;
 
         context = new Context(mockMessage, mockAdapter, mockClient);

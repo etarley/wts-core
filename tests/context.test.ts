@@ -74,4 +74,16 @@ describe("Context", () => {
         expect(ctxText.type).toBe("text");
         expect(ctxImg.type).toBe("image");
     });
+
+    it("should identify audio messages", () => {
+        const audioMsg: proto.IWebMessageInfo = {
+            key: {},
+            message: { audioMessage: {} }
+        };
+
+        const ctxAudio = new Context(audioMsg, mockAdapter, mockClient);
+
+        expect(ctxAudio.isAudio()).toBe(true);
+        expect(ctxAudio.type).toBe("audio");
+    });
 });

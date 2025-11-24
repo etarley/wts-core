@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { proto, type AnyMessageContent, type WAMessage } from '@whiskeysockets/baileys';
 import type { IAdapter } from './interfaces';
 import type { Client } from './Client';
@@ -137,6 +138,10 @@ export class Context<E extends Env = Env> {
 
     public isVideo(): this is Context<E> & { content: { videoMessage: NonNullable<proto.IMessage['videoMessage']> } } {
         return this.type === 'video' && !!this.raw.message?.videoMessage;
+    }
+
+    public isAudio(): this is Context<E> & { content: { audioMessage: NonNullable<proto.IMessage['audioMessage']> } } {
+        return this.type === 'audio' && !!this.raw.message?.audioMessage;
     }
 
     public isText(): this is Context<E> & { body: string } {
@@ -544,12 +549,63 @@ export class Context<E extends Env = Env> {
     }
 
     /**
+     * Resolve media input to Buffer (local file) or URL object (remote file).
+     */
+    private async _resolveMedia(input: Buffer | string): Promise<Buffer | { url: string }> {
+        if (typeof input === 'string') {
+            if (input.startsWith('http://') || input.startsWith('https://')) {
+                return { url: input };
+            }
+            try {
+                return await readFile(input);
+            } catch (error) {
+                throw new Error(`Failed to read file from path '${input}': ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        return input;
+    }
+
+    async sendImage(image: Buffer | string, caption?: string) {
+        const content = await this._resolveMedia(image);
+        return this.adapter.sendMessage(this.from, {
+            image: content,
+            caption: caption
+        });
+    }
+
+    async sendDocument(document: Buffer | string, fileName?: string, caption?: string, mimetype?: string) {
+        const content = await this._resolveMedia(document);
+        return this.adapter.sendMessage(this.from, {
+            document: content,
+            fileName: fileName,
+            caption: caption,
+            mimetype: mimetype ?? 'application/octet-stream'
+        });
+    }
+
+    /**
      * Reply with a video sticker.
      * Converts video buffer to animated WebP using ffmpeg.
      */
-    async replyVideoSticker(input: Buffer) {
-        const buffer = await StickerFormatter.videoToSticker(input);
-        return this.adapter.sendMessage(this.from, { sticker: buffer }, { quoted: this.raw });
+    async replyVideoSticker(input: Buffer | string) {
+        let buffer: Buffer;
+        
+        if (typeof input === 'string') {
+            // If URL, fetch it
+            if (input.startsWith('http://') || input.startsWith('https://')) {
+                const res = await fetch(input);
+                if (!res.ok) throw new Error(`Failed to fetch video sticker from URL: ${res.statusText}`);
+                buffer = Buffer.from(await res.arrayBuffer());
+            } else {
+                // Local file
+                buffer = await readFile(input);
+            }
+        } else {
+            buffer = input;
+        }
+
+        const sticker = await StickerFormatter.videoToSticker(buffer);
+        return this.adapter.sendMessage(this.from, { sticker }, { quoted: this.raw });
     }
 
     async sendLocation(lat: number, long: number) {
@@ -574,7 +630,7 @@ export class Context<E extends Env = Env> {
     }
 
     async sendVideo(video: Buffer | string, caption?: string, isGif: boolean = false, isPtv: boolean = false) {
-        const content = typeof video === 'string' ? { url: video } : video;
+        const content = await this._resolveMedia(video);
         return this.adapter.sendMessage(this.from, {
             video: content,
             caption: caption,
@@ -588,12 +644,73 @@ export class Context<E extends Env = Env> {
     }
 
     async sendAudio(audio: Buffer | string, ptt: boolean = false) {
-        const content = typeof audio === 'string' ? { url: audio } : audio;
+        const content = await this._resolveMedia(audio);
+        
+        // Ensure ptt is inside the audio object for adapters that look for it there
+        const audioContent = typeof content === 'object' && !Buffer.isBuffer(content) 
+            ? { ...content, ptt } 
+            : content;
+
         return this.adapter.sendMessage(this.from, {
-            audio: content,
+            audio: audioContent,
             ptt: ptt,
-            mimetype: 'audio/mp4' 
+            mimetype: ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4' 
         });
+    }
+
+    /**
+     * Reply with an audio message.
+     */
+    async replyAudio(audio: Buffer | string, ptt: boolean = false) {
+        const content = await this._resolveMedia(audio);
+        
+        // Ensure ptt is inside the audio object for adapters that look for it there
+        const audioContent = typeof content === 'object' && !Buffer.isBuffer(content) 
+            ? { ...content, ptt } 
+            : content;
+
+        return this.adapter.sendMessage(this.from, {
+            audio: audioContent,
+            ptt: ptt,
+            mimetype: ptt ? 'audio/ogg; codecs=opus' : 'audio/mp4' 
+        }, { quoted: this.raw });
+    }
+
+    /**
+     * Reply with an image.
+     */
+    async replyImage(image: Buffer | string, caption?: string) {
+        const content = await this._resolveMedia(image);
+        return this.adapter.sendMessage(this.from, {
+            image: content,
+            caption: caption
+        }, { quoted: this.raw });
+    }
+
+    /**
+     * Reply with a video.
+     */
+    async replyVideo(video: Buffer | string, caption?: string, isGif: boolean = false, isPtv: boolean = false) {
+        const content = await this._resolveMedia(video);
+        return this.adapter.sendMessage(this.from, {
+            video: content,
+            caption: caption,
+            gifPlayback: isGif,
+            ptv: isPtv
+        }, { quoted: this.raw });
+    }
+
+    /**
+     * Reply with a document.
+     */
+    async replyDocument(document: Buffer | string, fileName?: string, caption?: string, mimetype?: string) {
+        const content = await this._resolveMedia(document);
+        return this.adapter.sendMessage(this.from, {
+            document: content,
+            fileName: fileName,
+            caption: caption,
+            mimetype: mimetype ?? 'application/octet-stream'
+        }, { quoted: this.raw });
     }
 
     /**
@@ -760,8 +877,8 @@ export class Context<E extends Env = Env> {
         const cardsParams = cards.map(card => {
             const buttonParams = card.buttons.map(btn => {
                 // Carousel cta_url buttons don't support merchant_url, only display_text and url
-                if (btn.type === 'url') return { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: btn.text, url: btn.url }) };
-                if (btn.type === 'copy') return { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: btn.text, copy_code: btn.copyCode }) };
+                if (btn.type === 'url') return { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: btn.text, url: btn.url, merchant_url: btn.url }) };
+                if (btn.type === 'copy') return { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: btn.text, copy_code: btn.copyCode ?? '' }) };
                 return { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: btn.text, id: btn.id }) };
             });
 

@@ -271,8 +271,31 @@ client.on('message', async (context: unknown) => {
         ], "Check out our latest offers!");
     }
 
+
     if (body === 'contact') {
         await ctx.sendContact('Test Contact', '1234567890');
+    }
+
+    if (body === 'audio') {
+        // 1. Basic Audio (Music/File)
+        // Shows headphone/music icon
+        // Usage: ctx.sendAudio(urlOrBuffer, false) - false is default
+        await ctx.reply('Sending basic audio...');
+        await ctx.sendAudio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', false);
+    }
+
+    if (body === 'voice') {
+        // 2. Voice Note (PTT)
+        // Shows waveform and play button
+        // Usage: ctx.sendAudio(urlOrBufferOrPath, true)
+        // IMPORTANT: For WhatsApp Cloud API, this MUST be an .ogg file with OPUS codec!
+        await ctx.reply('Sending voice note...');
+        
+        // Option A: Use a public URL (Must be OGG/OPUS)
+        await ctx.sendAudio('./voice.ogg', true);
+
+        // Option B: Send a local file directly (Automatic file reading)
+        // await ctx.sendAudio('./voice.ogg', true);
     }
 });
 

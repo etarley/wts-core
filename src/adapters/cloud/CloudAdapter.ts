@@ -681,19 +681,38 @@ export class CloudAdapter implements CloudAdapterInterface {
             else if (imgContent.id) body.image = { id: imgContent.id };
         } else if ('audio' in content) {
             body.type = 'audio';
-            const audioContent = content.audio as { url?: string; id?: string; ptt?: boolean; voice?: boolean };
-            const audioBody: { link?: string; id?: string; voice?: boolean } = {};
             
-            if (audioContent.url) audioBody.link = audioContent.url;
-            else if (audioContent.id) audioBody.id = audioContent.id;
-            
-            // Handle Voice Message Flag (ptt -> voice)
-            // Map Baileys 'ptt' boolean or explicit 'voice' boolean to Cloud API 'voice' boolean
-            if (audioContent.ptt === true || audioContent.voice === true) {
-                audioBody.voice = true;
+            // Check for Buffer (uploaded media)
+            if (Buffer.isBuffer(content.audio)) {
+                // Determine if it is a voice note
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const isVoice = (content as any).ptt === true || (content as any).voice === true;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const mime = (content as any).mimetype || (isVoice ? 'audio/ogg' : 'audio/mp4');
+                const fname = isVoice ? 'voice.ogg' : 'audio.mp4';
+                
+                const { id } = await this.uploadMedia(content.audio, 'audio', fname, mime);
+                body.audio = { id };
+                if (isVoice) body.audio.voice = true;
+            } else {
+                const audioContent = content.audio as { url?: string; id?: string; ptt?: boolean; voice?: boolean };
+                const audioBody: { link?: string; id?: string; voice?: boolean } = {};
+                
+                if (audioContent.url) audioBody.link = audioContent.url;
+                else if (audioContent.id) audioBody.id = audioContent.id;
+                
+                // Handle Voice Message Flag (ptt -> voice)
+                // Map Baileys 'ptt' boolean or explicit 'voice' boolean to Cloud API 'voice' boolean
+                // Check both inner audioContent and top-level content for ptt flag
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const isVoice = audioContent.ptt === true || audioContent.voice === true || (content as any).ptt === true;
+                
+                if (isVoice) {
+                    audioBody.voice = true;
+                }
+                
+                body.audio = audioBody;
             }
-            
-            body.audio = audioBody;
         } else if ('template' in content) {
             body.type = 'template';
             body.template = (content as unknown as CustomMessageContent).template;

@@ -91,7 +91,7 @@ export interface AdapterBase {
     sendStatus(content: AnyMessageContent): Promise<void>;
 
     // Presence Management (Common)
-    sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable'): Promise<void>;
+    sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable', messageId?: string): Promise<void>;
 
     // Call Management (Common)
     rejectCall(callId: string, from: string): Promise<void>;

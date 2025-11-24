@@ -7,7 +7,7 @@ export interface IStore {
     loadMessage(jid: string, id: string): Promise<proto.IWebMessageInfo | undefined>;
 }
 
-export class Store implements IStore {
+export class MemoryStore implements IStore {
     constructor(public readonly adapter: StorageAdapter = new MemoryAdapter()) {
         if (this.adapter.init) {
             this.adapter.init().catch(err => console.error('Failed to init storage adapter:', err));
@@ -35,3 +35,5 @@ export class Store implements IStore {
         return this.adapter.loadMessage(jid, id);
     }
 }
+
+export { MemoryStore as Store };

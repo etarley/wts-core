@@ -1,6 +1,7 @@
 import { Client } from './core/Client';
 import { BaileysAdapter } from './adapters/bailey/BaileysAdapter';
 import { CloudAdapter } from './adapters/cloud/CloudAdapter';
+import { Store } from './core/Store';
 import type { UniversalOptions, WtsPlugin, Env, InferPluginAPI } from './types';
 import type { BaileysAdapterInterface, CloudAdapterInterface } from './core/interfaces';
 
@@ -29,10 +30,16 @@ export function createClient<E extends Env = Env, P extends WtsPlugin[] = []>(
     // 2. Initialize the Core Client with the chosen Adapter
     const client = new Client<E, P>(adapter, options.plugins);
 
-    // 3. Bind Store if provided
+    // 3. Bind Store (Default to MemoryStore if not provided)
     if (options.store) {
         client.store = options.store;
+    } else {
+        client.store = new Store();
     }
+
+    // 4. Bind Store to Adapter Events (messages.upsert, etc.)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client.store!.bind(adapter as any);
 
     return client as unknown as Client<E, P, CloudAdapterInterface | BaileysAdapterInterface> & InferPluginAPI<P>;
 }

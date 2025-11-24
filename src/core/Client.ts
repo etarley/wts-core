@@ -65,6 +65,10 @@ export class Client<E extends Env = Env, P extends WtsPlugin[] = WtsPlugin[], A 
         this.flows = new FlowsResource(adapter);
         this.groups = new GroupsResource(adapter);
 
+        // Initialize Store (Default to Memory)
+        // Store is initialized in createClient factory to avoid double binding
+
+
         // Forward adapter events
         this.adapter.on('ready', () => this.emit('ready'));
         this.adapter.on('message', (data: unknown, env: unknown, ctx: unknown) => {

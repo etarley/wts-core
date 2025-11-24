@@ -442,7 +442,8 @@ export class BaileysAdapter implements BaileysAdapterInterface {
         await this.sock.presenceSubscribe(jid);
     }
 
-    async sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable'): Promise<void> {
+    async sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable', messageId?: string): Promise<void> {
+        void messageId;
         if (!this.sock) throw new Error('Client not connected');
         await this.sock.sendPresenceUpdate(type, jid);
     }

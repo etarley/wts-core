@@ -1,4 +1,5 @@
 import { Client } from './Client';
+import { Store } from './Store';
 import { BaileysAdapter } from '../adapters/bailey/BaileysAdapter';
 import { CloudAdapter } from '../adapters/cloud/CloudAdapter';
 import type { UniversalOptions } from '../types';
@@ -24,6 +25,16 @@ export class SessionManager {
         }
 
         const client = new Client(adapter);
+
+        // Initialize Store
+        if (options.store) {
+            client.store = options.store;
+        } else {
+            client.store = new Store();
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        client.store.bind(adapter as any);
+
         this.sessions.set(id, client);
         
         await client.connect();

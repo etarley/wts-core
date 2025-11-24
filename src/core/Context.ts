@@ -505,14 +505,14 @@ export class Context<E extends Env = Env> {
      * Simulate typing (composing) state.
      */
     async typing() {
-        return this.adapter.sendPresenceUpdate(this.from, 'composing');
+        return this.adapter.sendPresenceUpdate(this.from, 'composing', this.id);
     }
 
     /**
      * Simulate recording audio state.
      */
     async recording() {
-        return this.adapter.sendPresenceUpdate(this.from, 'recording');
+        return this.adapter.sendPresenceUpdate(this.from, 'recording', this.id);
     }
 
     // --- Messaging Helpers ---
@@ -598,8 +598,48 @@ export class Context<E extends Env = Env> {
 
     /**
      * Send modern interactive buttons (Native Flow)
+     * 
+     * **⚠️ Cloud API Limitation**: When using Cloud API (`cloudApi` config), only reply buttons are supported.
+     * URL and copy buttons will be automatically filtered out. For Baileys adapter, all button types work but
+     * they cannot be mixed in a single message - use only one type per message.
+     * 
+     * **Supported button types:**
+     * - `reply`: Quick reply button (works on all adapters)
+     * - `url`: URL button (Baileys only, requires separate message)
+     * - `copy`: Copy code button (Baileys only, requires separate message)
+     * 
+     * @param text - Message body text
+     * @param buttons - Array of buttons (max 3). For Cloud API, use only `type: 'reply'`.
+     * @param footer - Optional footer text
+     * @param header - Optional header text
+     * 
+     * @example
+     * // ✅ CORRECT - Reply buttons only (works on all adapters)
+     * await ctx.sendButtons('Choose an option', [
+     *   { id: 'btn1', text: 'Option 1', type: 'reply' },
+     *   { id: 'btn2', text: 'Option 2', type: 'reply' }
+     * ]);
+     * 
+     * @example
+     * // ❌ AVOID - Mixed button types (Cloud API will filter out non-reply buttons)
+     * await ctx.sendButtons('Choose an option', [
+     *   { id: 'btn1', text: 'Reply', type: 'reply' },
+     *   { id: 'btn2', text: 'Visit', type: 'url', url: 'https://example.com' }  // Will be filtered out on Cloud API
+     * ]);
      */
     async sendButtons(text: string, buttons: { id: string; text: string; type?: 'reply' | 'url' | 'copy'; url?: string; copyCode?: string }[], footer?: string, header?: string) {
+        // Runtime warning for Cloud API users with mixed button types
+        if (this.adapter.mode === 'cloud') {
+            const hasNonReply = buttons.some(btn => btn.type && btn.type !== 'reply');
+            if (hasNonReply) {
+                console.warn(
+                    '⚠️ Cloud API Limitation: Only reply buttons are supported. ' +
+                    'URL and copy buttons will be filtered out. ' +
+                    'Use only type="reply" or omit the type field for Cloud API.'
+                );
+            }
+        }
+
         const buttonParams = buttons.map(btn => {
             if (btn.type === 'url') {
                 return {
@@ -663,18 +703,86 @@ export class Context<E extends Env = Env> {
 
     /**
      * Send a carousel message
+     * 
+     * **⚠️ Cloud API Limitation**: Carousels only support URL buttons (`type: 'url'`).
+     * Reply and copy buttons are not supported in carousel messages and will be skipped.
+     * 
+     * **Supported button types in carousel:**
+     * - `url`: URL button (required for Cloud API carousels)
+     * - For reply buttons, use `sendButtons` instead
+     * 
+     * @param cards - Array of carousel cards (2-10 cards). Each card must have a URL button.
+     * 
+     * @example
+     * // ✅ CORRECT - URL buttons in carousel
+     * await ctx.sendCarousel([
+     *   {
+     *     body: 'Check out Product 1',
+     *     header: 'Product 1',
+     *     buttons: [{ id: 'b1', text: 'View', type: 'url', url: 'https://example.com/1' }]
+     *   },
+     *   {
+     *     body: 'Check out Product 2',
+     *     header: 'Product 2',
+     *     buttons: [{ id: 'b2', text: 'View', type: 'url', url: 'https://example.com/2' }]
+     *   }
+     * ]);
+     * 
+     * @example
+     * // ❌ AVOID - Reply buttons in carousel (will be skipped on Cloud API)
+     * await ctx.sendCarousel([
+     *   {
+     *     body: 'Card 1',
+     *     buttons: [{ id: 'b1', text: 'Reply', type: 'reply' }]  // Will be skipped
+     *   }
+     * ]);
      */
-    async sendCarousel(cards: { body: string; header?: string; footer?: string; buttons: { id: string; text: string; type?: 'reply' | 'url' | 'copy'; url?: string; copyCode?: string }[] }[]) {
+    async sendCarousel(cards: { 
+        body: string; 
+        header?: string | { image: { url: string } } | { video: { url: string } }; 
+        footer?: string; 
+        buttons: { id: string; text: string; type?: 'reply' | 'url' | 'copy'; url?: string; copyCode?: string }[] 
+    }[], text: string = "Carousel Message") {
+        // Runtime warning for Cloud API users with non-URL buttons
+        if (this.adapter.mode === 'cloud') {
+            const hasNonUrl = cards.some(card => 
+                card.buttons.some(btn => btn.type && btn.type !== 'url')
+            );
+            if (hasNonUrl) {
+                console.warn(
+                    '⚠️ Cloud API Limitation: Carousel messages only support URL buttons. ' +
+                    'Reply and copy buttons will be skipped. ' +
+                    'Use type="url" for all carousel buttons.'
+                );
+            }
+        }
+
         const cardsParams = cards.map(card => {
             const buttonParams = card.buttons.map(btn => {
-                if (btn.type === 'url') return { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: btn.text, url: btn.url, merchant_url: btn.url }) };
+                // Carousel cta_url buttons don't support merchant_url, only display_text and url
+                if (btn.type === 'url') return { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: btn.text, url: btn.url }) };
                 if (btn.type === 'copy') return { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: btn.text, copy_code: btn.copyCode }) };
                 return { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: btn.text, id: btn.id }) };
             });
 
+            let header: any = undefined;
+            if (typeof card.header === 'string') {
+                header = { title: card.header, hasMediaAttachment: false };
+            } else if (card.header && 'image' in card.header) {
+                header = { 
+                    imageMessage: { url: card.header.image.url }, 
+                    hasMediaAttachment: true 
+                };
+            } else if (card.header && 'video' in card.header) {
+                header = { 
+                    videoMessage: { url: card.header.video.url }, 
+                    hasMediaAttachment: true 
+                };
+            }
+
             return {
                 body: { text: card.body },
-                header: card.header ? { title: card.header, hasMediaAttachment: false } : undefined,
+                header: header,
                 footer: card.footer ? { text: card.footer } : undefined,
                 nativeFlowMessage: { buttons: buttonParams }
             };
@@ -684,6 +792,7 @@ export class Context<E extends Env = Env> {
             viewOnceMessage: {
                 message: {
                     interactiveMessage: {
+                        body: { text: text },
                         carouselMessage: {
                             cards: cardsParams
                         }

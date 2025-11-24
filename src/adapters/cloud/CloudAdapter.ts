@@ -619,6 +619,29 @@ export class CloudAdapter implements CloudAdapterInterface {
         this.processingQueue = false;
     }
 
+    private parseVCard(vcard: string): { name: { formatted_name: string; first_name: string }; phones: Array<{ phone: string; type: string; wa_id?: string }> } {
+        const nameMatch = vcard.match(/FN:(.+)/);
+        const name = nameMatch?.[1]?.trim() || 'Unknown';
+        
+        const telMatch = vcard.match(/TEL;.*:(.+)/);
+        const phone = telMatch?.[1]?.trim() || '';
+        
+        const waidMatch = vcard.match(/waid=([\d]+)/);
+        const waId = waidMatch?.[1];
+
+        return {
+            name: {
+                formatted_name: name,
+                first_name: name.split(' ')[0] || name
+            },
+            phones: phone ? [{
+                phone: phone,
+                type: 'Mobile',
+                wa_id: waId
+            }] : []
+        };
+    }
+
     async sendMessage(jid: string, content: AnyMessageContent, options?: SendMessageOptions): Promise<proto.IWebMessageInfo | undefined> {
         // Determine if this is a group message based on JID format or explicit option
         // Group JIDs usually contain a hyphen (e.g., 123-456@g.us) or are longer/specific format in Cloud API
@@ -676,9 +699,15 @@ export class CloudAdapter implements CloudAdapterInterface {
             body.template = (content as unknown as CustomMessageContent).template;
         } else if ('sticker' in content) {
             body.type = 'sticker';
-            const stickerContent = content.sticker as { url?: string; id?: string };
-            if (stickerContent.url) body.sticker = { link: stickerContent.url };
-            else if (stickerContent.id) body.sticker = { id: stickerContent.id };
+            // Check for Buffer (uploaded media)
+            if (Buffer.isBuffer(content.sticker)) {
+                const { id } = await this.uploadMedia(content.sticker, 'image', 'sticker.webp', 'image/webp');
+                body.sticker = { id };
+            } else {
+                const stickerContent = content.sticker as { url?: string; id?: string };
+                if (stickerContent.url) body.sticker = { link: stickerContent.url };
+                else if (stickerContent.id) body.sticker = { id: stickerContent.id };
+            }
         } else if ('location' in content) {
             body.type = 'location';
             // Baileys uses degreesLatitude/Longitude, Cloud API uses latitude/longitude
@@ -693,7 +722,13 @@ export class CloudAdapter implements CloudAdapterInterface {
         } else if ('contacts' in content) {
             body.type = 'contacts';
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            body.contacts = (content.contacts as { contacts: unknown[] }).contacts as any;
+            const contacts = (content.contacts as { contacts: any[] }).contacts;
+            body.contacts = contacts.map(c => {
+                if (c.vcard && !c.name) {
+                    return this.parseVCard(c.vcard);
+                }
+                return c;
+            });
         } else if ('react' in content) {
             body.type = 'reaction';
             body.reaction = {
@@ -706,10 +741,12 @@ export class CloudAdapter implements CloudAdapterInterface {
             body.sticker = {
                 id: (content.stickerMessage as any).stickerId || ''
             };
+        } else if ('poll' in content || 'pollCreationMessage' in content) {
+            throw new Error('Polls are not currently supported in Cloud API.');
         } else if ('interactiveMessage' in content) {
             body.type = 'interactive';
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            body.interactive = (content as any).interactiveMessage;
+            body.interactive = this.transformInteractive((content as any).interactiveMessage);
         }
 
         if (options?.quoted?.key?.id) {
@@ -718,10 +755,218 @@ export class CloudAdapter implements CloudAdapterInterface {
 
         const res = await this.apiRequest('/messages', 'POST', body) as CloudSendMessageResponse;
         
-        return {
+        const msgInfo: proto.IWebMessageInfo = {
             key: { remoteJid: jid, fromMe: true, id: res.messages?.[0]?.id },
-            messageTimestamp: Date.now() / 1000
-        } as proto.IWebMessageInfo;
+            message: this.contentToProto(content),
+            messageTimestamp: Date.now() / 1000,
+            status: proto.WebMessageInfo.Status.SERVER_ACK
+        };
+
+        this.emit('messages.upsert', { messages: [msgInfo], type: 'append' });
+
+        return msgInfo;
+    }
+
+    private contentToProto(content: AnyMessageContent): proto.IMessage {
+        const message: proto.IMessage = {};
+
+        if ('text' in content && typeof content.text === 'string') {
+            message.conversation = content.text;
+        } else if ('image' in content) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const img = content.image as any;
+            message.imageMessage = {
+                url: img.url,
+                caption: img.caption,
+                mimetype: 'image/jpeg'
+            };
+        } else if ('video' in content) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vid = content.video as any;
+            message.videoMessage = {
+                url: vid.url,
+                caption: vid.caption,
+                mimetype: 'video/mp4'
+            };
+        } else if ('audio' in content) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const aud = content.audio as any;
+            message.audioMessage = {
+                url: aud.url,
+                mimetype: aud.mimetype || 'audio/mp4',
+                ptt: aud.ptt
+            };
+        } else if ('sticker' in content) {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             const st = content.sticker as any;
+             message.stickerMessage = {
+                 url: st.url
+             };
+        } else if ('location' in content) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const loc = content.location as any;
+            message.locationMessage = {
+                degreesLatitude: loc.degreesLatitude,
+                degreesLongitude: loc.degreesLongitude,
+                name: loc.name,
+                address: loc.address
+            };
+        } else if ('interactiveMessage' in content) {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             message.interactiveMessage = content.interactiveMessage as any;
+        }
+
+        return message;
+    }
+
+
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private transformInteractive(interactive: any): any {
+        const result: any = {
+            body: interactive.body,
+            footer: interactive.footer
+        };
+
+        // Handle Header
+        if (interactive.header) {
+            if (interactive.header.title) {
+                result.header = {
+                    type: 'text',
+                    text: interactive.header.title
+                };
+            } else if (interactive.header.imageMessage) {
+                 result.header = {
+                    type: 'image',
+                    image: { 
+                        id: interactive.header.imageMessage.id,
+                        link: interactive.header.imageMessage.url 
+                    } 
+                 };
+                 // Clean up undefined
+                 if (!result.header.image.id) delete result.header.image.id;
+                 if (!result.header.image.link) delete result.header.image.link;
+            } else if (interactive.header.videoMessage) {
+                 result.header = {
+                    type: 'video',
+                    video: { 
+                        id: interactive.header.videoMessage.id,
+                        link: interactive.header.videoMessage.url 
+                    } 
+                 };
+                 if (!result.header.video.id) delete result.header.video.id;
+                 if (!result.header.video.link) delete result.header.video.link;
+            } else if (interactive.header.documentMessage) {
+                result.header = {
+                   type: 'document',
+                   document: { 
+                       id: interactive.header.documentMessage.id,
+                       link: interactive.header.documentMessage.url,
+                       filename: interactive.header.documentMessage.fileName
+                   } 
+                };
+                if (!result.header.document.id) delete result.header.document.id;
+                if (!result.header.document.link) delete result.header.document.link;
+           }
+        }
+
+        // Handle Native Flow (Buttons, List, etc.)
+        if (interactive.nativeFlowMessage) {
+            const buttons = interactive.nativeFlowMessage.buttons;
+            if (buttons && buttons.length > 0) {
+                const firstBtn = buttons[0];
+                const params = firstBtn.buttonParamsJson ? JSON.parse(firstBtn.buttonParamsJson) : {};
+
+                if (firstBtn.name === 'quick_reply') {
+                    result.type = 'button';
+                    result.action = {
+                        buttons: buttons
+                            .filter((btn: any) => btn.name === 'quick_reply')
+                            .map((btn: any) => {
+                                const p = JSON.parse(btn.buttonParamsJson);
+                                return {
+                                    type: 'reply',
+                                    reply: {
+                                        id: p.id,
+                                        title: p.display_text
+                                    }
+                                };
+                            })
+                    };
+                } else if (firstBtn.name === 'single_select') {
+                    result.type = 'list';
+                    result.action = {
+                        button: params.title,
+                        sections: params.sections
+                    };
+                } else if (firstBtn.name === 'cta_url') {
+                    result.type = 'cta_url';
+                    result.action = {
+                        name: 'cta_url',
+                        parameters: {
+                            display_text: params.display_text,
+                            url: params.url
+                        }
+                    };
+                }
+            }
+        } else if (interactive.carouselMessage) {
+            result.type = 'carousel';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const cards = interactive.carouselMessage.cards.map((card: any, index: number) => {
+                const cardBtn = card.nativeFlowMessage?.buttons?.[0];
+                const cardParams = cardBtn?.buttonParamsJson ? JSON.parse(cardBtn.buttonParamsJson) : {};
+                
+                // Construct header
+                let header = undefined;
+                if (card.header) {
+                     if (card.header.imageMessage) {
+                        header = {
+                            type: 'image',
+                            image: { 
+                                id: card.header.imageMessage.id,
+                                link: card.header.imageMessage.url 
+                            }
+                        };
+                     } else if (card.header.videoMessage) {
+                        header = {
+                            type: 'video',
+                            video: { 
+                                id: card.header.videoMessage.id,
+                                link: card.header.videoMessage.url 
+                            }
+                        };
+                     }
+                }
+
+                // Cloud API carousels only support cta_url and product types
+                // quick_reply buttons are not supported in carousels
+                if (cardBtn?.name === 'cta_url') {
+                    return {
+                        card_index: index,
+                        type: 'cta_url',
+                        header: header,
+                        body: { text: card.body?.text || card.body },
+                        action: {
+                            name: 'cta_url',
+                            parameters: {
+                                display_text: cardParams.display_text,
+                                url: cardParams.url
+                            }
+                        }
+                    };
+                } else {
+                    // Default to product type or cta_url if no valid button
+                    // For now, skip cards without proper cta_url buttons
+                    console.warn('Carousel cards require cta_url buttons. Card will be skipped.');
+                    return null;
+                }
+            }).filter(Boolean); // Remove null cards
+            
+            result.action = { cards };
+        }
+
+        return result;
     }
 
     // --- Templates Management ---
@@ -1307,9 +1552,25 @@ export class CloudAdapter implements CloudAdapterInterface {
         void _patch;
         throw new Error('Method not implemented.');
     }
-    async sendPresenceUpdate(_type: unknown, _to?: string) {
-        void _type; void _to;
-        throw new Error('Method not implemented.');
+    async sendPresenceUpdate(jid: string, type: 'composing' | 'recording' | 'available' | 'unavailable', messageId?: string) {
+        void jid;
+        
+        if (!messageId) return;
+
+        // Only 'composing' and 'recording' are relevant for Cloud API typing indicators
+        if (type === 'available' || type === 'unavailable') return;
+
+        // Currently, 'text' is the only confirmed supported type for typing indicators
+        const typingType = 'text';
+
+        await this.apiRequest('/messages', 'POST', {
+            messaging_product: 'whatsapp',
+            status: 'read',
+            message_id: messageId,
+            typing_indicator: {
+                type: typingType
+            }
+        });
     }
     async presenceSubscribe(_to: string) {
         void _to;

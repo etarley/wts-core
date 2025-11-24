@@ -6,14 +6,22 @@ const client = createClient({
 });
 
 client.on('message', async (ctx) => {
-  // TypeScript knows these methods are available after isGroup() check
+  // Usage 1: Direct call (returns string | null)
+  const potentialName = await ctx.getGroupName();
+  if (potentialName) {
+    console.log('Direct call name:', potentialName);
+  }
+
+  // Usage 2: With type narrowing (returns string)
   if (ctx.isGroup()) {
-    const groupName = await ctx.getGroupName();
-    const metadata = await ctx.getGroupMetadata();
+    // TypeScript knows these are NOT null here because of isGroup()
+    const name = await ctx.getGroupName(); 
+    const metadata = await ctx.getGroupMetadata(); 
     
-    console.log('Group Name:', groupName);
-    console.log('Group Description:', metadata.desc);
-    console.log('Participants:', metadata.participants?.length);
+    if (name && metadata) {
+        console.log('Narrowed name:', name);
+        console.log('Narrowed desc:', metadata.desc);
+    }
   }
 });
 

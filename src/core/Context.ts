@@ -127,40 +127,44 @@ export class Context<E extends Env = Env> {
     /**
      * Is this a group message?
      */
-    public isGroup(): this is Context<E> & { raw: { key: { remoteJid: `${string}@g.us` } }; getGroupName(): Promise<string | undefined>; getGroupMetadata(): Promise<GroupMetadata> } {
+    /**
+     * Is this a group message?
+     */
+    public isGroup(): this is Context<E> & { raw: { key: { remoteJid: `${string}@g.us` } } } {
         return this.from.endsWith('@g.us');
     }
 
     /**
      * Get the group name/subject.
-     * Only available when isGroup() returns true.
+     * Returns null if this is not a group message.
      * Results are cached to avoid redundant API calls.
      */
-    async getGroupName(): Promise<string | undefined> {
+    async getGroupName(): Promise<string | null> {
         if (!this.isGroup()) {
-            throw new Error('getGroupName() can only be called on group messages');
+            return null;
         }
         const metadata = await this.getGroupMetadata();
-        return metadata.subject;
+        // We know metadata is not null here because isGroup() is true
+        return metadata!.subject;
     }
 
     /**
      * Get full group metadata (name, description, participants, etc.).
-     * Only available when isGroup() returns true.
+     * Returns null if this is not a group message.
      * Results are cached to avoid redundant API calls.
      */
-    async getGroupMetadata(): Promise<GroupMetadata> {
+    async getGroupMetadata(): Promise<GroupMetadata | null> {
         if (!this.isGroup()) {
-            throw new Error('getGroupMetadata() can only be called on group messages');
+            return null;
         }
         
         if (this._groupMetadataCache) {
-            return this._groupMetadataCache;
+            return this._groupMetadataCache as GroupMetadata;
         }
 
         const metadata = await this.adapter.groupMetadata(this.from);
         this._groupMetadataCache = metadata;
-        return metadata;
+        return metadata as GroupMetadata;
     }
 
     // Type Guards

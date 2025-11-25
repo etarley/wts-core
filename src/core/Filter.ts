@@ -50,6 +50,13 @@ export class Filter {
     }
 
     /**
+     * Alias for image filter.
+     */
+    static get photo(): Filter {
+        return Filter.image;
+    }
+
+    /**
      * Filter for video messages.
      */
     static get video(): Filter {

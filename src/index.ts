@@ -102,3 +102,6 @@ export * from './jsx';
 
 export * from './utils/FlowResponse';
 export * from './utils/VCardBuilder';
+
+export { Router } from './router';
+export { Filter as filters } from './core/Filter';

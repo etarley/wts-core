@@ -107,7 +107,7 @@ export type Handler<E extends Env = Env> = (
 
 export type Middleware<E extends Env = Env> = Handler<E>;
 
-export type FilterFn<E extends Env = Env> = (ctx: Context<E>) => boolean | Promise<boolean>;
+export type FilterFn<E extends Env = Env> = (ctx: Context<E>) => boolean | undefined | Promise<boolean | undefined>;
 
 export const filters = {
     text: (ctx: Context) => ctx.type === 'text',

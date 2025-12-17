@@ -1,38 +1,13 @@
 {
   "compilerOptions": {
-    // Environment setup & latest features
     "lib": ["ESNext"],
     "target": "ESNext",
     "module": "ESNext",
-    "moduleDetection": "force",
-    "allowJs": true,
-
-    // Bundler mode
     "moduleResolution": "bundler",
-    "verbatimModuleSyntax": true,
-    "noEmit": false,
-    "declaration": true,
-    "outDir": "./dist",
-
-    // Best practices
+    "allowJs": true,
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-
-    // JSX Support
-    "jsx": "react",
-    "jsxFactory": "h",
-    "jsxFragmentFactory": "Fragment",
-
-    // Some stricter flags (disabled by default)
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false,
-
-    "paths": {
-      "wts-core": ["./src/index.ts"]
-    }
+    "forceConsistentCasingInFileNames": true
   }
 }

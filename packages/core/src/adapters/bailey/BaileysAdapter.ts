@@ -130,16 +130,32 @@ export class BaileysAdapter implements BaileysAdapterInterface {
 
             const { connection, lastDisconnect, qr } = update;
 
+            // Handle QR code or pairing code authentication
             if (qr) {
-                this.emit('qr', qr);
-            }
-
-            // Only print QR if we are in a terminal environment and explicitely enabled
-            if (qr && this.options.printQR && isNode) {
-                qrcode.generate(qr, { small: true });
-                console.log('Scan the QR code above to authenticate');
-            } else if (qr && this.options.printQR && !isNode) {
-                console.log('QR Code received (terminal printing disabled in non-Node env):', qr);
+                // If phoneNumber is provided, request pairing code instead of showing QR
+                if (this.options.phoneNumber) {
+                    try {
+                        const code = await this.sock!.requestPairingCode(this.options.phoneNumber);
+                        this.emit('pairing-code', code);
+                    } catch (error) {
+                        console.error('Failed to get pairing code:', error);
+                        // Fall back to QR on failure
+                        this.emit('qr', qr);
+                        if (this.options.printQR && isNode) {
+                            qrcode.generate(qr, { small: true });
+                            console.log('Scan the QR code above to authenticate');
+                        }
+                    }
+                } else {
+                    // Standard QR code flow
+                    this.emit('qr', qr);
+                    if (this.options.printQR && isNode) {
+                        qrcode.generate(qr, { small: true });
+                        console.log('Scan the QR code above to authenticate');
+                    } else if (this.options.printQR && !isNode) {
+                        console.log('QR Code received (terminal printing disabled in non-Node env):', qr);
+                    }
+                }
             }
 
             if (connection === 'close') {
@@ -158,16 +174,6 @@ export class BaileysAdapter implements BaileysAdapterInterface {
                 }
             } else if (connection === 'open') {
                 this.reconnectAttempts = 0;
-                // console.log('Connected to WhatsApp');
-                if (this.options.phoneNumber) {
-                    try {
-                        const code = await this.sock!.requestPairingCode(this.options.phoneNumber);
-                        // console.log(`Pairing code: ${code}`);
-                        this.emit('pairing-code', code);
-                    } catch (error) {
-                        console.error('Failed to get pairing code:', error);
-                    }
-                }
                 this.emit('ready');
             }
         });

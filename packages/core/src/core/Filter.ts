@@ -85,6 +85,13 @@ export class Filter {
     }
 
     /**
+     * Filter for reaction messages.
+     */
+    static get reaction(): Filter {
+        return new Filter((ctx) => !!ctx.content?.reactionMessage || !!ctx.content?.encReactionMessage);
+    }
+
+    /**
      * Filter for location messages.
      */
     static get location(): Filter {

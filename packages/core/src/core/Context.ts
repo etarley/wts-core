@@ -185,6 +185,10 @@ export class Context<E extends Env = Env> {
         return this.type === 'text';
     }
 
+    public isReaction(): this is Context<E> & { reaction: NonNullable<Context<E>['reaction']> } {
+        return this.type === 'reaction';
+    }
+
     /**
      * Is this message sent by the bot (outgoing) or received from someone else (incoming)?
      * true = outgoing (from me), false = incoming (to me)
@@ -315,6 +319,22 @@ export class Context<E extends Env = Env> {
             return {
                 pollKey: msg.pollUpdateMessage.pollCreationMessageKey,
                 vote: msg.pollUpdateMessage.vote
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Get reaction details (emoji and the message key that was reacted to).
+     * Returns null if this is not a reaction message.
+     */
+    get reaction(): { readonly emoji: string; readonly key: proto.IMessageKey } | null {
+        const msg = this.content;
+        const reactionMsg = msg?.reactionMessage;
+        if (reactionMsg?.key) {
+            return {
+                emoji: reactionMsg.text || '',
+                key: reactionMsg.key
             };
         }
         return null;

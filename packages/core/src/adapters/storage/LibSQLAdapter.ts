@@ -73,7 +73,7 @@ export class LibSQLAdapter implements StorageAdapter {
 
         const writeStmts = validChats.map((chat, index) => {
             const result = readResults[index];
-            const row = result?.rows?.[0] as { data: string } | undefined;
+            const row = result?.rows?.[0] as unknown as { data: string } | undefined;
             const existingData = row ? JSON.parse(row.data) : {};
             const mergedData = { ...existingData, ...chat };
 
@@ -115,7 +115,7 @@ export class LibSQLAdapter implements StorageAdapter {
 
         const writeStmts = validContacts.map((contact, index) => {
             const result = readResults[index];
-            const row = result?.rows?.[0] as { data: string } | undefined;
+            const row = result?.rows?.[0] as unknown as { data: string } | undefined;
             const existingData = row ? JSON.parse(row.data) : {};
             const mergedData = { ...existingData, ...contact };
 

@@ -62,6 +62,13 @@ export class Router<E extends Env = Env> {
     }
 
     /**
+     * Handle reaction messages
+     */
+    reaction(...handlers: Handler<E>[]) {
+        return this.on(Filter.reaction, ...handlers);
+    }
+
+    /**
      * Register a pattern handler (regex match)
      */
     hear(pattern: RegExp, ...handlers: Handler<E>[]) {

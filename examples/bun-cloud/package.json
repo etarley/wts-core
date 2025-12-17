@@ -7,7 +7,7 @@
     "dev": "bun run --hot index.tsx"
   },
   "dependencies": {
-    "wts-core": "file:../../"
+    "wts-core": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -38,6 +38,7 @@ export class CloudAdapter implements CloudAdapterInterface {
     private processingQueue = false;
     private lastRequestTime = 0;
     private readonly MIN_REQUEST_INTERVAL = 50; // 20 requests per second max (conservative)
+    private readonly rateLimitEnabled: boolean;
 
     public capabilities: AdapterCapabilities = {
         hasGroups: true,
@@ -69,6 +70,7 @@ export class CloudAdapter implements CloudAdapterInterface {
     constructor(private options: UniversalOptions) {
         if (!options.cloudApi) throw new Error('Cloud API configuration missing');
         this.baseUrl = `https://graph.facebook.com/v24.0/${options.cloudApi.phoneNumberId}`;
+        this.rateLimitEnabled = options.cloudApi.rateLimit !== false;
         
         if (options.cloudApi.flowPrivateKey) {
             this.flowCrypto = new FlowCrypto({
@@ -448,6 +450,18 @@ export class CloudAdapter implements CloudAdapterInterface {
                     }
                 }
 
+                if (value.calls) {
+                    for (const call of value.calls) {
+                        this.emit('call', {
+                            id: call.id,
+                            to: call.to || '',
+                            from: call.from,
+                            timestamp: typeof call.timestamp === 'string' ? parseInt(call.timestamp) : call.timestamp,
+                            event: call.event || 'unknown'
+                        }, env, ctx);
+                    }
+                }
+
                 if (value.statuses) {
                     for (const status of value.statuses) {
                         let statusString = 'UNKNOWN';
@@ -564,27 +578,34 @@ export class CloudAdapter implements CloudAdapterInterface {
     }
 
     public async apiRequest(endpoint: string, method: string, body?: unknown): Promise<unknown> {
+        const makeRequest = async (): Promise<unknown> => {
+            const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${this.options.cloudApi!.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: body ? JSON.stringify(body) : undefined
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const error = (data as any).error;
+                throw mapCloudError(error);
+            }
+            return data;
+        };
+
+        // Bypass queue when rate limiting is disabled
+        if (!this.rateLimitEnabled) {
+            return makeRequest();
+        }
+
         return new Promise((resolve, reject) => {
             this.requestQueue.push({
-                task: async () => {
-                    const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
-                    const response = await fetch(url, {
-                        method,
-                        headers: {
-                            'Authorization': `Bearer ${this.options.cloudApi!.accessToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: body ? JSON.stringify(body) : undefined
-                    });
-
-                    const data = await response.json();
-                    if (!response.ok) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const error = (data as any).error;
-                        throw mapCloudError(error);
-                    }
-                    return data;
-                },
+                task: makeRequest,
                 resolve,
                 reject
             });

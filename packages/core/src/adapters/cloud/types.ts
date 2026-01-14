@@ -28,6 +28,7 @@ export interface CloudValue {
     phone_number_quality_update?: CloudPhoneNumberQualityUpdate;
     security_notification?: CloudSecurityNotification;
     account_update?: CloudAccountUpdate;
+    calls?: CloudCallEvent[];
     call?: CloudCallEvent;
     user_marketing_preferences?: CloudMarketingPreference[];
     
@@ -213,11 +214,12 @@ export interface CloudAccountUpdate {
 
 export interface CloudCallEvent {
     from: string;
+    to?: string;
     id: string;
-    timestamp: string;
-    type: string;
+    timestamp: string | number;
+    type?: string;
     sdp?: string;
-    event?: 'offer' | 'answer' | 'reject' | 'terminate';
+    event?: string;
 }
 
 export interface CloudMarketingPreference {

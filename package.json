@@ -1,18 +1,23 @@
 {
   "name": "wts-monorepo",
+  "version": "",
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
   "private": true,
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "lint": "bun run --filter '*' lint",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
   "workspaces": [
     "packages/*",
     "examples/*",
     "apps/*"
-  ],
-  "scripts": {
-    "build": "bun run --filter '*' build",
-    "test": "bun run --filter '*' test",
-    "lint": "bun run --filter '*' lint"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^24.10.1"
-  }
+  ]
 }

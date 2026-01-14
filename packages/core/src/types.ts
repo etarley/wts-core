@@ -12,9 +12,17 @@ export interface ClientEvents<E extends Env> {
     'pairing-code': string;
     'message.status': { id: string; status: proto.WebMessageInfo.Status; remoteJid: string; fromMe: boolean };
     'group-participants': { group: string; participants: string[]; action: 'add' | 'remove' | 'promote' | 'demote' };
-    'call': unknown;
+    'call': WtsCall;
     'group.join_request': unknown;
     'chat.update': unknown;
+}
+
+export interface WtsCall {
+    id: string;
+    to: string;
+    from: string;
+    timestamp: number;
+    event: string;
 }
 
 export type WtsPlugin<API = unknown> = {
@@ -63,12 +71,18 @@ export interface UniversalOptions<P extends WtsPlugin[] = WtsPlugin[]> {
      */
     disableThumbnailGeneration?: boolean;
     cloudApi?: {
-        accessToken: string;
-        phoneNumberId: string;
-        webhookVerifyToken: string;
-        appSecret?: string;
-        port?: number;
-        flowPrivateKey?: string;
+        readonly accessToken: string;
+        readonly phoneNumberId: string;
+        readonly webhookVerifyToken: string;
+        readonly appSecret?: string;
+        readonly port?: number;
+        readonly flowPrivateKey?: string;
+        /**
+         * Enable rate limiting to prevent 429 errors.
+         * When enabled, requests are queued and throttled to 20 req/s.
+         * @default true
+         */
+        readonly rateLimit?: boolean;
     };
     /**
      * List of plugins to load

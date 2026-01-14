@@ -1,9 +1,12 @@
 {
   "name": "wts-core",
-  "version": "1.1.1",
+  "version": "1.2.2",
   "description": "A modern, Hono-like abstraction for WhatsApp automation supporting Baileys and Cloud API.",
   "author": "Etarley Taveras",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/etarley/wts-core"
@@ -79,6 +82,7 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "login": "^0.8.0",
     "qrcode-terminal": "^0.12.0",
     "ws": "^8.18.3",
     "zod": "^4.1.12"

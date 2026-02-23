@@ -22,6 +22,10 @@ const client = createClient({
   plugins: [chat(), user()]
 });
 
+client.on('call', (call) => {
+    console.log('Call event received:', call);
+});
+
 client.useBot({
     shouldTrigger(ctx: Context) {
         return ctx.body.toLowerCase() === 'hello' ? true : false;

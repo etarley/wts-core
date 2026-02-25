@@ -8,6 +8,8 @@ import qrcode from 'qrcode-terminal';
 import { LocalAuthStrategy } from '../../core/auth/LocalAuthStrategy';
 import type { AuthStrategy } from '../../core/auth/AuthStrategy';
 
+const DEFAULT_WA_WEB_VERSION: NonNullable<UniversalOptions['waWebVersion']> = [2, 3000, 1033893291];
+
 
 // Minimal interface to satisfy Baileys logger requirement
 interface PinoLogger {
@@ -91,9 +93,13 @@ export class BaileysAdapter implements BaileysAdapterInterface {
 
         console.log(`[BaileysAdapter] Connecting... Environment: isNode=${isNode}, isBun=${isBun}`);
 
+        const { version: socketConfigVersion, ...customSocketConfig } = this.options.socketConfig ?? {};
+        const waWebVersion = socketConfigVersion ?? this.options.waWebVersion ?? DEFAULT_WA_WEB_VERSION;
+
         const socketConfig = {
             auth: state,
             logger: createLogger('silent') as unknown as PinoLogger,
+            version: waWebVersion,
             
             getMessage: async (key: proto.IMessageKey) => {
                 if (this.options.store && key.remoteJid && key.id) {
@@ -106,7 +112,7 @@ export class BaileysAdapter implements BaileysAdapterInterface {
             // Explicitly provide WebSocket implementation for Node/Bun environments
             // This ensures we have setMaxListeners which Baileys expects
             ...(isNode || isBun ? { webSocket: WebSocket } : {}),
-            ...this.options.socketConfig
+            ...customSocketConfig
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -37,7 +37,8 @@ const client = createClient<Env>({
     webhookVerifyToken: process.env.CLOUD_API_VERIFY_TOKEN!, // Make sure this matches Meta's console
   },
   // Or for Baileys
-  // auth: { ... }
+  // waWebVersion: [2, 3000, 1033893291], // Optional default
+  // socketConfig: { version: [2, 3000, 1033893291] } // Optional explicit override
 });
 
 // 2. Add event listeners

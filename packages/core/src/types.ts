@@ -56,6 +56,11 @@ export interface UniversalOptions<P extends WtsPlugin[] = WtsPlugin[]> {
     ignoreOwnMessages?: boolean;
     authStrategy?: AuthStrategy | string; 
     phoneNumber?: string;
+    /**
+     * WhatsApp Web version tuple passed to Baileys `socketConfig.version`.
+     * @default [2, 3000, 1033893291]
+     */
+    waWebVersion?: SocketConfig['version'];
     socketConfig?: Partial<SocketConfig>;
     /**
      * Optional store for tracking state (contacts, chats, messages)

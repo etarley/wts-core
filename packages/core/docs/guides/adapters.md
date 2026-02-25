@@ -46,9 +46,13 @@ const client = createClient({
     // Optional: Custom auth strategy
     // strategy: new LocalAuthStrategy(),
   },
+  // Optional: defaults to [2, 3000, 1033893291]
+  waWebVersion: [2, 3000, 1033893291],
   // Optional: Baileys specific options
-  mobile: false, // Set to true for mobile API (experimental)
-  browser: ["My Bot", "Chrome", "1.0.0"],
+  socketConfig: {
+    // `socketConfig.version` takes precedence over `waWebVersion`
+    version: [2, 3000, 1033893291],
+  },
 });
 ```
 

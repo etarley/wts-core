@@ -1,4 +1,8 @@
-import makeWASocket, { DisconnectReason, type WASocket, proto, type AnyMessageContent, type ConnectionState, type WAMessage, type GroupMetadata, type NewsletterMetadata, type NewsletterUpdate, generateWAMessageFromContent, downloadMediaMessage, type ProductCreate, type ProductUpdate } from '@whiskeysockets/baileys';
+import _baileys, { DisconnectReason, type WASocket, proto, type AnyMessageContent, type ConnectionState, type WAMessage, type GroupMetadata, type NewsletterMetadata, type NewsletterUpdate, generateWAMessageFromContent, downloadMediaMessage, type ProductCreate, type ProductUpdate } from '@whiskeysockets/baileys';
+
+// Handle CJS/ESM interop: when tsup compiles to CJS, the default import
+// may end up as a Module object instead of the makeWASocket function.
+const makeWASocket = typeof _baileys === 'function' ? _baileys : (_baileys as any).default ?? (_baileys as any).makeWASocket;
 import WebSocket from 'ws';
 import { type Boom } from '@hapi/boom';
 import { createLogger } from '../../utils/logger';
